@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <title>안드로이드 바코드 합계기</title>
+
+  <style>
+    :root{
+      --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280; --line:#e5e7eb;
+      --primary:#111827; --good:#047857; --bad:#b91c1c; --warn:#92400e; --info:#1d4ed8;
+      --r:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;background:var(--bg);color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
+    button,input{font:inherit}
+    .app{width:min(760px,100%);margin:0 auto;padding:12px 12px calc(28px + env(safe-area-inset-bottom))}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:3px 2px 12px}
+    h1{font-size:22px;margin:0;letter-spacing:-.035em}
+    .badge{padding:7px 10px;border-radius:999px;background:#e5e7eb;color:#374151;font-size:12px;font-weight:800;white-space:nowrap}
+    .badge.good{background:#d1fae5;color:#065f46}
+    .badge.bad{background:#fee2e2;color:#991b1b}
+    .badge.warn{background:#fef3c7;color:#92400e}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 2px 10px rgba(17,24,39,.04);padding:15px;margin-bottom:11px}
+    .summary{display:grid;grid-template-columns:1fr auto;align-items:end;gap:10px 16px}
+    .label{color:var(--muted);font-size:12px;font-weight:800}
+    .total{font-size:clamp(36px,10vw,56px);font-weight:950;letter-spacing:-.055em;line-height:1.05;margin-top:4px}
+    .count{text-align:right;font-size:20px;font-weight:900;padding-bottom:5px}
+    .section-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+    .section-title h2{margin:0;font-size:17px;letter-spacing:-.02em}
+
+    #videoWrap{
+      position:relative;background:#111827;border-radius:14px;overflow:hidden;min-height:220px;
+      display:flex;align-items:center;justify-content:center;margin-bottom:11px;
+    }
+    #video{
+      width:100%;max-height:58vh;display:none;object-fit:cover;background:#111827;
+    }
+    #cameraPlaceholder{
+      color:#d1d5db;text-align:center;padding:48px 18px;font-size:14px;line-height:1.5;
+    }
+    .scanGuide{
+      position:absolute;left:8%;right:8%;top:50%;height:34%;transform:translateY(-50%);
+      border:3px solid rgba(255,255,255,.92);border-radius:14px;pointer-events:none;display:none;
+      box-shadow:0 0 0 2000px rgba(0,0,0,.2);
+    }
+    .scanLine{
+      position:absolute;left:8%;right:8%;top:50%;height:2px;background:rgba(255,255,255,.8);display:none;
+    }
+    #fallbackReader{position:absolute;width:1px;height:1px;overflow:hidden;left:-9999px}
+
+    .buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    button{
+      border:0;border-radius:13px;padding:13px 12px;min-height:48px;font-weight:900;cursor:pointer;
+      -webkit-tap-highlight-color:transparent;
+    }
+    button.primary{background:var(--primary);color:#fff}
+    button.secondary{background:#e5e7eb;color:#111827}
+    button.danger{background:#fee2e2;color:#991b1b}
+    button.photo{background:#1d4ed8;color:white}
+    button:disabled{opacity:.45;cursor:default}
+    .full{grid-column:1/-1}
+
+    .message{margin-top:10px;min-height:20px;color:var(--muted);font-size:13px;line-height:1.5}
+    .message.good{color:var(--good);font-weight:800}
+    .message.bad{color:var(--bad);font-weight:800}
+    .message.warn{color:var(--warn);font-weight:800}
+
+    .env{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px;line-height:1.45}
+    .env dt{color:var(--muted);font-weight:800}
+    .env dd{margin:0;font-weight:750;overflow-wrap:anywhere}
+    .guideBox{margin-top:11px;padding:11px 12px;border-radius:12px;background:#f9fafb;border:1px solid var(--line);font-size:12px;line-height:1.55;color:#374151}
+    .guideBox.bad{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+    .guideBox.good{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+    .guideBox b{font-weight:950}
+
+    .manual{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:11px}
+    input[type=text]{
+      width:100%;border:1px solid #d1d5db;border-radius:12px;padding:12px 13px;min-height:48px;outline:none;background:white
+    }
+    input[type=text]:focus{border-color:#4b5563;box-shadow:0 0 0 3px rgba(17,24,39,.07)}
+    .hint{margin-top:9px;color:var(--muted);font-size:12px;line-height:1.55}
+    code{background:#f3f4f6;padding:2px 5px;border-radius:5px}
+
+    .empty{color:var(--muted);font-size:14px;padding:18px 4px;text-align:center}
+    .item{display:grid;grid-template-columns:1fr auto auto;gap:8px 10px;align-items:center;border-top:1px solid var(--line);padding:11px 0}
+    .item:first-child{border-top:0}
+    .item-main{min-width:0}
+    .item-name{font-weight:900;line-height:1.3}
+    .item-meta{margin-top:3px;color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+    .item-price{font-size:18px;font-weight:950;white-space:nowrap}
+    .icon-btn{width:38px;height:38px;min-height:38px;padding:0;border-radius:10px;background:#f3f4f6;color:#6b7280;font-size:17px}
+
+    .flash{animation:flash .45s ease-out}
+    @keyframes flash{0%{box-shadow:0 0 0 0 rgba(4,120,87,.45)}100%{box-shadow:0 0 0 14px rgba(4,120,87,0)}}
+
+    @media(max-width:480px){
+      .app{padding-left:9px;padding-right:9px}
+      .card{padding:13px}
+      .manual{grid-template-columns:1fr}
+      .manual button{width:100%}
+    }
+  </style>
+</head>
+<body>
+<main class="app">
+  <div class="top">
+    <h1>안드로이드 바코드 합계기</h1>
+    <div id="status" class="badge">점검 중</div>
+  </div>
+
+  <section id="summaryCard" class="card summary">
+    <div>
+      <div class="label">합계</div>
+      <div id="total" class="total">0원</div>
+    </div>
+    <div>
+      <div class="label" style="text-align:right">스캔 건수</div>
+      <div id="count" class="count">0건</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-title">
+      <h2>실행 환경 점검</h2>
+      <button id="refreshDiagBtn" class="secondary" type="button" style="min-height:36px;padding:7px 10px;font-size:12px">다시 점검</button>
+    </div>
+    <dl class="env">
+      <dt>열린 방식</dt><dd id="envProtocol">확인 중</dd>
+      <dt>카메라 API</dt><dd id="envMedia">확인 중</dd>
+      <dt>카메라 권한</dt><dd id="envPermission">확인 중</dd>
+      <dt>바코드 엔진</dt><dd id="envDetector">확인 중</dd>
+    </dl>
+    <div id="envGuide" class="guideBox">환경을 확인하고 있습니다.</div>
+  </section>
+
+  <section class="card">
+    <div id="videoWrap">
+      <video id="video" playsinline muted></video>
+      <div id="cameraPlaceholder">실시간 카메라를 시작하거나<br>아래의 <b>사진으로 읽기</b>를 사용하세요.</div>
+      <div id="scanGuide" class="scanGuide"></div>
+      <div id="scanLine" class="scanLine"></div>
+    </div>
+    <div id="fallbackReader"></div>
+
+    <div class="buttons">
+      <button id="startBtn" class="primary" type="button">실시간 카메라 시작</button>
+      <button id="stopBtn" class="secondary" type="button" disabled>카메라 중지</button>
+      <button id="photoBtn" class="photo full" type="button">사진 촬영으로 바코드 읽기</button>
+      <input id="photoInput" type="file" accept="image/*" capture="environment" hidden />
+    </div>
+
+    <div id="message" class="message">실시간 카메라가 안 되면 사진 촬영 방식으로 자동 전환 안내가 표시됩니다.</div>
+
+    <div class="manual">
+      <input id="manualCode" type="text" inputmode="numeric" autocomplete="off" maxlength="13" placeholder="바코드 13자리 직접 입력" />
+      <button id="manualBtn" class="secondary" type="button">추가</button>
+    </div>
+
+    <div class="hint">
+      규칙: <code>2 + PLU 5자리 + 가격 6자리 + 체크숫자</code><br>
+      예: <code>2000131094006</code> → PLU 00013 → 109,400원
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-title">
+      <h2>스캔 내역</h2>
+      <button id="sampleBtn" class="secondary" type="button" style="min-height:36px;padding:7px 10px;font-size:12px">샘플 테스트</button>
+    </div>
+    <div id="list"></div>
+    <div class="buttons" style="margin-top:11px">
+      <button id="undoBtn" class="secondary" type="button">마지막 삭제</button>
+      <button id="clearBtn" class="danger" type="button">전체 삭제</button>
+      <button id="csvBtn" class="secondary full" type="button">CSV로 저장</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  const RULE = {
+    requiredLength: 13,
+    prefix: "2",
+    pluStart: 1,
+    pluLength: 5,
+    priceStart: 6,
+    priceLength: 6
+  };
+
+  const PRODUCT_NAMES = {
+    "00013": "한우 부채살"
+  };
+
+  const STORAGE_KEY = "barcode_total_items_android_v2";
+  const SAME_CODE_GAP_MS = 1600;
+
+  let items = loadItems();
+  let stream = null;
+  let detector = null;
+  let scanLoopTimer = null;
+  let scanning = false;
+  let fallbackScanner = null;
+  let audioCtx = null;
+  let lastSeenCode = "";
+  let lastSeenAt = 0;
+  let permissionState = "unknown";
+
+  const $ = id => document.getElementById(id);
+  const statusEl = $("status"), totalEl = $("total"), countEl = $("count"), listEl = $("list");
+  const summaryCard = $("summaryCard"), messageEl = $("message"), video = $("video");
+  const cameraPlaceholder = $("cameraPlaceholder"), scanGuide = $("scanGuide"), scanLine = $("scanLine");
+  const startBtn = $("startBtn"), stopBtn = $("stopBtn"), photoBtn = $("photoBtn"), photoInput = $("photoInput");
+  const manualCode = $("manualCode"), manualBtn = $("manualBtn");
+  const sampleBtn = $("sampleBtn"), undoBtn = $("undoBtn"), clearBtn = $("clearBtn"), csvBtn = $("csvBtn");
+  const envProtocol = $("envProtocol"), envMedia = $("envMedia"), envPermission = $("envPermission");
+  const envDetector = $("envDetector"), envGuide = $("envGuide");
+
+  function money(n){ return Number(n || 0).toLocaleString("ko-KR") + "원"; }
+
+  function setStatus(text, kind=""){
+    statusEl.textContent = text;
+    statusEl.className = "badge" + (kind ? " " + kind : "");
+  }
+
+  function setMessage(text, kind=""){
+    messageEl.textContent = text;
+    messageEl.className = "message" + (kind ? " " + kind : "");
+  }
+
+  function loadItems(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    }catch(_){ return []; }
+  }
+
+  function saveItems(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }catch(_){}
+  }
+
+  function validateEan13(code){
+    if(!/^\d{13}$/.test(code)) return false;
+    const d = code.split("").map(Number);
+    let sum = 0;
+    for(let i=0;i<12;i++) sum += d[i] * (i % 2 === 0 ? 1 : 3);
+    return ((10 - (sum % 10)) % 10) === d[12];
+  }
+
+  function parseBarcode(raw){
+    const code = String(raw || "").replace(/\D/g,"");
+    if(code.length !== RULE.requiredLength) return {ok:false,error:"13자리 EAN-13 바코드가 아닙니다."};
+    if(!validateEan13(code)) return {ok:false,error:"EAN-13 체크숫자가 맞지 않습니다. 다시 읽어주세요."};
+    if(code[0] !== RULE.prefix) return {ok:false,error:"현재 설정은 2로 시작하는 가격 포함 바코드만 계산합니다."};
+
+    const plu = code.slice(RULE.pluStart, RULE.pluStart + RULE.pluLength);
+    const priceText = code.slice(RULE.priceStart, RULE.priceStart + RULE.priceLength);
+    const price = Number(priceText);
+    if(!Number.isInteger(price) || price <= 0) return {ok:false,error:"바코드에서 유효한 가격을 찾지 못했습니다."};
+
+    return {ok:true, code, plu, price, name:PRODUCT_NAMES[plu] || ("PLU " + plu)};
+  }
+
+  function addBarcode(raw, source="scan"){
+    const r = parseBarcode(raw);
+    if(!r.ok){
+      setStatus("오류","bad");
+      setMessage(r.error,"bad");
+      badBuzz();
+      return false;
+    }
+
+    const now = new Date();
+    items.push({
+      id: now.getTime().toString(36) + Math.random().toString(36).slice(2,7),
+      code:r.code, plu:r.plu, price:r.price, name:r.name, source, time:now.toISOString()
+    });
+    saveItems();
+    render();
+    setStatus("추가됨","good");
+    setMessage(`${r.name} · ${money(r.price)} 추가`,"good");
+    goodBuzz();
+
+    summaryCard.classList.remove("flash");
+    void summaryCard.offsetWidth;
+    summaryCard.classList.add("flash");
+    return true;
+  }
+
+  function render(){
+    const total = items.reduce((s,x)=>s+Number(x.price||0),0);
+    totalEl.textContent = money(total);
+    countEl.textContent = items.length.toLocaleString("ko-KR") + "건";
+    undoBtn.disabled = clearBtn.disabled = csvBtn.disabled = items.length === 0;
+
+    if(items.length === 0){
+      listEl.innerHTML = '<div class="empty">아직 스캔한 항목이 없습니다.</div>';
+      return;
+    }
+
+    listEl.innerHTML = items.slice().reverse().map(item=>{
+      const t = new Date(item.time);
+      const hhmm = isNaN(t) ? "" : t.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"});
+      return `
+        <div class="item">
+          <div class="item-main">
+            <div class="item-name">${esc(item.name || ("PLU " + item.plu))}</div>
+            <div class="item-meta">${esc(item.code)} · ${esc(hhmm)}</div>
+          </div>
+          <div class="item-price">${money(item.price)}</div>
+          <button class="icon-btn" type="button" data-delete="${esc(item.id)}" aria-label="삭제">×</button>
+        </div>`;
+    }).join("");
+  }
+
+  function esc(v){
+    return String(v ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;")
+      .replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  }
+
+  function unlockAudio(){
+    try{
+      if(!audioCtx){
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if(Ctx) audioCtx = new Ctx();
+      }
+      if(audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+    }catch(_){}
+  }
+
+  function beep(freq=880,duration=.08){
+    try{
+      if(!audioCtx) return;
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.frequency.value=freq;
+      g.gain.setValueAtTime(.055,audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+duration);
+      o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+duration);
+    }catch(_){}
+  }
+  function goodBuzz(){ beep(920,.08); try{navigator.vibrate?.(70)}catch(_){} }
+  function badBuzz(){ beep(220,.12); try{navigator.vibrate?.([80,50,80])}catch(_){} }
+
+  async function getPermissionState(){
+    permissionState = "unknown";
+    try{
+      if(navigator.permissions?.query){
+        const p = await navigator.permissions.query({name:"camera"});
+        permissionState = p.state || "unknown";
+        p.onchange = ()=>{ permissionState = p.state; refreshDiagnostics(); };
+      }
+    }catch(_){}
+    return permissionState;
+  }
+
+  async function refreshDiagnostics(){
+    const isFile = location.protocol === "file:";
+    const isHttps = location.protocol === "https:";
+    const hasMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    const hasNativeDetector = "BarcodeDetector" in window;
+
+    envProtocol.textContent = isFile ? "로컬 파일 (file://)" : (isHttps ? "HTTPS 웹주소" : location.protocol);
+    envMedia.textContent = hasMedia ? "사용 가능" : "사용 불가";
+    envDetector.textContent = hasNativeDetector ? "기본 바코드 엔진 사용 가능" : "보조 엔진 필요";
+
+    await getPermissionState();
+    const permissionText = {
+      granted:"허용됨", prompt:"아직 묻지 않음", denied:"거부됨", unknown:"확인 불가"
+    }[permissionState] || permissionState;
+    envPermission.textContent = permissionText;
+
+    envGuide.className = "guideBox";
+
+    if(permissionState === "denied"){
+      envGuide.classList.add("bad");
+      envGuide.innerHTML =
+        "<b>카메라 권한이 차단되어 있습니다.</b><br>" +
+        "안드로이드 설정 → 앱 → Chrome(또는 사용 중인 브라우저) → 권한 → 카메라 → 허용 후 이 페이지로 돌아와 '다시 점검'을 누르세요.";
+      setStatus("권한 차단","bad");
+      return;
+    }
+
+    if(isFile){
+      envGuide.classList.add("bad");
+      envGuide.innerHTML =
+        "<b>현재 HTML 파일을 직접 열었습니다.</b><br>" +
+        "안드로이드에서는 이 방식에서 실시간 카메라가 막힐 수 있습니다. 아래 '사진 촬영으로 바코드 읽기'는 사용할 수 있습니다. " +
+        "연속 스캔은 이 HTML을 HTTPS 주소에 올려서 여는 방식이 가장 안정적입니다.";
+      setStatus("로컬 파일","warn");
+      return;
+    }
+
+    if(!hasMedia){
+      envGuide.classList.add("bad");
+      envGuide.innerHTML =
+        "<b>이 브라우저에서는 실시간 카메라 API를 사용할 수 없습니다.</b><br>" +
+        "Chrome 최신 버전에서 다시 열거나 사진 촬영 방식을 사용하세요.";
+      setStatus("카메라 API 없음","bad");
+      return;
+    }
+
+    envGuide.classList.add("good");
+    envGuide.innerHTML =
+      "<b>실시간 카메라를 시도할 수 있는 환경입니다.</b><br>" +
+      "처음 시작할 때 카메라 사용 팝업이 나오면 '허용'을 누르세요.";
+    setStatus(permissionState === "granted" ? "준비됨" : "권한 요청 가능","good");
+  }
+
+  function cameraErrorInfo(err){
+    const name = err?.name || "";
+    const msg = String(err?.message || "");
+
+    if(name === "NotAllowedError" || name === "SecurityError"){
+      if(location.protocol === "file:"){
+        return {
+          status:"로컬 파일 제한",
+          text:"HTML 파일을 직접 연 상태라 실시간 카메라가 차단된 것으로 보입니다. 사진 촬영 방식으로 전환하세요.",
+          kind:"bad"
+        };
+      }
+      return {
+        status:"권한 거부",
+        text:"카메라 권한이 거부되었습니다. 안드로이드 설정 → 앱 → 사용 중인 브라우저 → 권한 → 카메라 → 허용 후 다시 시도하세요.",
+        kind:"bad"
+      };
+    }
+    if(name === "NotFoundError"){
+      return {status:"카메라 없음",text:"사용 가능한 카메라를 찾지 못했습니다.",kind:"bad"};
+    }
+    if(name === "NotReadableError" || /could not start|track start/i.test(msg)){
+      return {status:"카메라 사용 중",text:"다른 앱이 카메라를 사용 중일 수 있습니다. 카메라 앱·영상통화 앱을 닫고 다시 시도하세요.",kind:"bad"};
+    }
+    if(name === "OverconstrainedError"){
+      return {status:"카메라 설정 오류",text:"후면 카메라 설정을 적용하지 못했습니다. 다른 카메라로 다시 시도합니다.",kind:"bad"};
+    }
+    if(name === "TypeError"){
+      return {status:"보안 환경 필요",text:"이 페이지에서는 카메라 API를 쓸 수 없습니다. HTTPS 주소로 열거나 사진 촬영 방식을 사용하세요.",kind:"bad"};
+    }
+    return {
+      status:"카메라 시작 실패",
+      text:"실시간 카메라를 시작하지 못했습니다. 사진 촬영 방식으로 전환하세요.",
+      kind:"bad"
+    };
+  }
+
+  function enterPhotoFallback(reason){
+    setMessage(reason + " 아래 파란 버튼을 눌러 사진 촬영으로 계속할 수 있습니다.","warn");
+    photoBtn.scrollIntoView({behavior:"smooth",block:"center"});
+    photoBtn.focus({preventScroll:true});
+  }
+
+  async function createDetector(){
+    if(!("BarcodeDetector" in window)) return null;
+    try{
+      const formats = await BarcodeDetector.getSupportedFormats?.();
+      if(Array.isArray(formats) && formats.length && !formats.includes("ean_13")) return null;
+    }catch(_){}
+    try{
+      return new BarcodeDetector({formats:["ean_13"]});
+    }catch(_){
+      return null;
+    }
+  }
+
+  async function startLiveCamera(){
+    unlockAudio();
+
+    if(scanning) return;
+
+    if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
+      const info = cameraErrorInfo({name:"TypeError"});
+      setStatus(info.status,info.kind); enterPhotoFallback(info.text); badBuzz();
+      await refreshDiagnostics();
+      return;
+    }
+
+    try{
+      setStatus("카메라 연결 중");
+      setMessage("카메라 권한 요청이 나오면 허용을 누르세요.");
+
+      stream = await navigator.mediaDevices.getUserMedia({
+        video:{
+          facingMode:{ideal:"environment"},
+          width:{ideal:1280},
+          height:{ideal:720}
+        },
+        audio:false
+      });
+
+      detector = await createDetector();
+
+      // 기본 BarcodeDetector가 없으면 실시간은 보조 엔진으로 시도한다.
+      if(!detector){
+        stream.getTracks().forEach(t=>t.stop());
+        stream = null;
+        await startFallbackLive();
+        return;
+      }
+
+      video.srcObject = stream;
+      video.style.display = "block";
+      cameraPlaceholder.style.display = "none";
+      scanGuide.style.display = "block";
+      scanLine.style.display = "block";
+      await video.play();
+
+      scanning = true;
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      setStatus("스캔 중","good");
+      setMessage("바코드 전체가 흰 사각형 안에 들어오게 맞추세요.");
+      liveDetectLoop();
+      await refreshDiagnostics();
+      setStatus("스캔 중","good");
+    }catch(err){
+      stopLiveCamera(false);
+      const info = cameraErrorInfo(err);
+      setStatus(info.status,info.kind);
+      enterPhotoFallback(info.text);
+      badBuzz();
+      await refreshDiagnostics();
+      setStatus(info.status,info.kind);
+    }
+  }
+
+  async function liveDetectLoop(){
+    if(!scanning || !detector) return;
+    try{
+      if(video.readyState >= 2){
+        const found = await detector.detect(video);
+        if(found && found.length){
+          const value = found[0].rawValue || "";
+          handleDetected(value,"camera");
+        }
+      }
+    }catch(_){}
+    if(scanning) scanLoopTimer = setTimeout(liveDetectLoop, 180);
+  }
+
+  function handleDetected(raw,source){
+    const code = String(raw || "").replace(/\D/g,"");
+    const now = Date.now();
+    if(code === lastSeenCode && now-lastSeenAt < SAME_CODE_GAP_MS){
+      lastSeenAt = now;
+      return;
+    }
+    lastSeenCode = code;
+    lastSeenAt = now;
+    addBarcode(code,source);
+  }
+
+  async function stopLiveCamera(updateUi=true){
+    scanning = false;
+    if(scanLoopTimer){ clearTimeout(scanLoopTimer); scanLoopTimer=null; }
+
+    if(fallbackScanner){
+      try{ await fallbackScanner.stop(); }catch(_){}
+      try{ await fallbackScanner.clear(); }catch(_){}
+      fallbackScanner = null;
+    }
+
+    if(stream){
+      try{ stream.getTracks().forEach(t=>t.stop()); }catch(_){}
+      stream = null;
+    }
+
+    video.pause();
+    video.srcObject = null;
+    video.style.display = "none";
+    cameraPlaceholder.style.display = "block";
+    scanGuide.style.display = "none";
+    scanLine.style.display = "none";
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+
+    if(updateUi){
+      setStatus("대기");
+      setMessage("실시간 카메라를 중지했습니다.");
+    }
+  }
+
+  async function ensureFallbackLibrary(){
+    if(window.Html5Qrcode && window.Html5QrcodeSupportedFormats) return true;
+
+    const sources = [
+      "https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js",
+      "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"
+    ];
+
+    for(const src of sources){
+      try{
+        await new Promise((resolve,reject)=>{
+          const s=document.createElement("script");
+          s.src=src;
+          s.onload=resolve;
+          s.onerror=reject;
+          document.head.appendChild(s);
+        });
+        if(window.Html5Qrcode && window.Html5QrcodeSupportedFormats) return true;
+      }catch(_){}
+    }
+    return false;
+  }
+
+  async function startFallbackLive(){
+    const ok = await ensureFallbackLibrary();
+    if(!ok){
+      setStatus("보조 엔진 오류","bad");
+      enterPhotoFallback("이 브라우저의 기본 바코드 엔진을 사용할 수 없고 보조 엔진도 불러오지 못했습니다.");
+      return;
+    }
+
+    try{
+      fallbackScanner = new Html5Qrcode(
+        "fallbackReader",
+        {formatsToSupport:[Html5QrcodeSupportedFormats.EAN_13],useBarCodeDetectorIfSupported:true},
+        false
+      );
+
+      // html5-qrcode가 자체 카메라 UI를 fallbackReader에 만들면 화면 밖이라 보이지 않으므로
+      // 이 경로는 기본적으로 권한/판독용으로만 사용한다.
+      await fallbackScanner.start(
+        {facingMode:"environment"},
+        {fps:10,qrbox:{width:280,height:120},disableFlip:true},
+        decoded=>handleDetected(decoded,"camera"),
+        ()=>{}
+      );
+
+      scanning = true;
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      setStatus("스캔 중","good");
+      setMessage("보조 바코드 엔진으로 실시간 스캔 중입니다.");
+    }catch(err){
+      const info = cameraErrorInfo(err);
+      setStatus(info.status,info.kind);
+      enterPhotoFallback(info.text);
+      badBuzz();
+    }
+  }
+
+  async function scanPhoto(file){
+    unlockAudio();
+    if(!file) return;
+
+    setStatus("사진 판독 중");
+    setMessage("사진에서 EAN-13 바코드를 찾고 있습니다.");
+
+    // 1) 안드로이드 Chrome의 기본 BarcodeDetector 우선
+    const native = await createDetector();
+    if(native){
+      try{
+        const bitmap = await createImageBitmap(file);
+        const found = await native.detect(bitmap);
+        bitmap.close?.();
+        if(found && found.length){
+          handleDetected(found[0].rawValue || "","photo");
+          photoInput.value="";
+          return;
+        }
+      }catch(_){}
+    }
+
+    // 2) 기본 엔진 실패 시 html5-qrcode를 인터넷에서 불러와 보조 판독
+    const ok = await ensureFallbackLibrary();
+    if(ok){
+      try{
+        if(!fallbackScanner){
+          fallbackScanner = new Html5Qrcode(
+            "fallbackReader",
+            {formatsToSupport:[Html5QrcodeSupportedFormats.EAN_13]},
+            false
+          );
+        }
+        const text = await fallbackScanner.scanFile(file,false);
+        handleDetected(text,"photo");
+        photoInput.value="";
+        return;
+      }catch(_){}
+    }
+
+    setStatus("판독 실패","bad");
+    setMessage("사진에서 바코드를 읽지 못했습니다. 바코드가 화면 대부분을 차지하도록 가까이 촬영해 주세요.","bad");
+    badBuzz();
+    photoInput.value="";
+  }
+
+  function deleteById(id){
+    const i=items.findIndex(x=>x.id===id);
+    if(i<0) return;
+    items.splice(i,1); saveItems(); render();
+    setStatus("삭제됨"); setMessage("항목 1개를 삭제했습니다.");
+  }
+
+  function undoLast(){
+    if(!items.length) return;
+    items.pop(); saveItems(); render();
+    setStatus("삭제됨"); setMessage("마지막 항목을 삭제했습니다.");
+  }
+
+  function clearAll(){
+    if(!items.length) return;
+    if(!confirm("스캔 내역과 합계를 모두 지울까요?")) return;
+    items=[]; saveItems(); render();
+    setStatus("초기화됨"); setMessage("모든 내역을 삭제했습니다.");
+  }
+
+  function exportCsv(){
+    if(!items.length) return;
+    const rows=[
+      ["시간","상품","PLU","바코드","금액"],
+      ...items.map(x=>[new Date(x.time).toLocaleString("ko-KR"),x.name,x.plu,x.code,x.price])
+    ];
+    const csv="\ufeff"+rows.map(r=>r.map(v=>'"'+String(v??"").replaceAll('"','""')+'"').join(",")).join("\r\n");
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+    const url=URL.createObjectURL(blob), a=document.createElement("a"), d=new Date();
+    const ymd=d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
+    a.href=url; a.download="barcode_"+ymd+".csv"; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+
+  startBtn.addEventListener("click",startLiveCamera);
+  stopBtn.addEventListener("click",()=>stopLiveCamera(true));
+  photoBtn.addEventListener("click",()=>{unlockAudio();photoInput.click();});
+  photoInput.addEventListener("change",()=>scanPhoto(photoInput.files?.[0]));
+
+  manualBtn.addEventListener("click",()=>{
+    unlockAudio();
+    if(addBarcode(manualCode.value,"manual")) manualCode.value="";
+  });
+  manualCode.addEventListener("keydown",e=>{if(e.key==="Enter") manualBtn.click();});
+
+  sampleBtn.addEventListener("click",()=>{unlockAudio();addBarcode("2000131094006","sample");});
+  undoBtn.addEventListener("click",undoLast);
+  clearBtn.addEventListener("click",clearAll);
+  csvBtn.addEventListener("click",exportCsv);
+  $("refreshDiagBtn").addEventListener("click",refreshDiagnostics);
+
+  listEl.addEventListener("click",e=>{
+    const b=e.target.closest("[data-delete]");
+    if(b) deleteById(b.dataset.delete);
+  });
+
+  window.addEventListener("pagehide",()=>{ stopLiveCamera(false); });
+
+  render();
+  refreshDiagnostics();
+})();
+</script>
+</body>
+</html>
