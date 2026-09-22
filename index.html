@@ -7,10 +7,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>바코드 합계기</title>
 
-  <!-- 실시간 1D 바코드 전용 엔진: Quagga2 -->
+  <!-- 실시간 1D 바코드 전용 -->
   <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.4.2/dist/quagga.min.js"></script>
 
-  <!-- 사진 판독은 기존에 잘 동작하던 엔진 유지 -->
+  <!-- 사진 판독용 -->
   <script
     src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"
     onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'">
@@ -44,14 +44,11 @@
     .count{text-align:right;font-size:20px;font-weight:900;padding-bottom:5px}
 
     .camera-frame{
-      position:relative;width:100%;height:min(58vh,480px);min-height:300px;
+      position:relative;width:100%;height:min(60vh,500px);min-height:330px;
       background:#111827;border-radius:14px;overflow:hidden;margin-bottom:11px;
     }
-    #interactive{
-      position:absolute;inset:0;width:100%;height:100%;background:#111827;overflow:hidden;
-    }
-    #interactive video,
-    #interactive canvas{
+    #interactive{position:absolute;inset:0;width:100%;height:100%;background:#111827;overflow:hidden}
+    #interactive video,#interactive canvas{
       position:absolute;inset:0;width:100% !important;height:100% !important;object-fit:cover !important;
     }
     #interactive canvas{display:none !important}
@@ -61,21 +58,31 @@
       pointer-events:none;background:#111827;
     }
 
-    /* Quagga 입력 영역과 같은 중앙 가로 띠 */
+    /*
+      올려주신 라벨에는 상단 이력번호 바코드와 하단 가격 바코드가 둘 다 있음.
+      가격 바코드가 주로 들어오는 중앙~하단의 큰 영역만 탐색한다.
+    */
     .scan-zone{
-      position:absolute;z-index:5;left:4%;right:4%;top:29%;bottom:29%;
-      border:3px solid rgba(255,255,255,.96);border-radius:14px;pointer-events:none;display:none;
-      box-shadow:0 0 0 2000px rgba(0,0,0,.24);
+      position:absolute;z-index:5;left:3%;right:3%;top:32%;bottom:7%;
+      border:3px solid rgba(255,255,255,.96);border-radius:16px;pointer-events:none;display:none;
+      box-shadow:0 0 0 2000px rgba(0,0,0,.20);
     }
     .scan-line{
-      position:absolute;z-index:6;left:5%;right:5%;top:50%;height:2px;
-      background:rgba(255,255,255,.9);pointer-events:none;display:none;
+      position:absolute;z-index:6;left:5%;right:5%;top:63%;height:2px;
+      background:rgba(255,255,255,.82);pointer-events:none;display:none;
     }
     .scan-help{
-      position:absolute;z-index:6;left:0;right:0;top:calc(29% - 27px);
-      text-align:center;color:#fff;font-size:12px;font-weight:800;pointer-events:none;display:none;
-      text-shadow:0 1px 3px rgba(0,0,0,.7);
+      position:absolute;z-index:6;left:4%;right:4%;top:calc(32% + 10px);
+      text-align:center;color:#fff;font-size:12px;font-weight:900;pointer-events:none;display:none;
+      text-shadow:0 1px 3px rgba(0,0,0,.8);
     }
+    .scan-lock{
+      position:absolute;z-index:7;left:50%;top:50%;transform:translate(-50%,-50%);
+      min-width:70%;padding:16px 18px;border-radius:16px;background:rgba(4,120,87,.90);
+      color:#fff;text-align:center;font-size:18px;font-weight:950;line-height:1.35;
+      display:none;pointer-events:none;box-shadow:0 8px 30px rgba(0,0,0,.25);
+    }
+    .scan-lock small{display:block;margin-top:5px;font-size:12px;font-weight:750;opacity:.95}
 
     #photoReader{position:absolute;left:-9999px;width:2px;height:2px;overflow:hidden}
 
@@ -134,7 +141,7 @@
     @media(max-width:480px){
       .app{padding-left:9px;padding-right:9px}
       .card{padding:13px}
-      .camera-frame{height:52vh;min-height:330px}
+      .camera-frame{height:54vh;min-height:350px}
       .manual{grid-template-columns:1fr}
       .manual button{width:100%}
     }
@@ -163,11 +170,15 @@
       <div id="interactive"></div>
       <div id="cameraPlaceholder">
         실시간 카메라를 시작하세요.<br>
-        iPhone은 Safari, Android는 Chrome을 권장합니다.
+        가격 바코드는 기울어져도 괜찮습니다.
       </div>
       <div id="scanZone" class="scan-zone"></div>
       <div id="scanLine" class="scan-line"></div>
-      <div id="scanHelp" class="scan-help">바코드를 흰 박스 안에 수평으로 맞추세요</div>
+      <div id="scanHelp" class="scan-help">하단 가격 바코드가 큰 박스 안에만 들어오면 됩니다</div>
+      <div id="scanLock" class="scan-lock">
+        인식 완료
+        <small>다음 상품으로 바꿔 주세요</small>
+      </div>
     </div>
     <div id="photoReader"></div>
 
@@ -179,10 +190,12 @@
     </div>
 
     <div id="message" class="message">
-      EAN-13 전용 고속 인식입니다. 바코드가 중앙 가로 영역에 들어오면 자동 계산합니다.
+      각도 자동 탐색을 켰습니다. 라벨 전체보다 하단 가격 바코드를 큰 박스 안에 넣는 것이 가장 빠릅니다.
     </div>
 
-    <div id="cameraInfo" class="camera-info">카메라를 시작하면 실제 해상도와 카메라 상태를 표시합니다.</div>
+    <div id="cameraInfo" class="camera-info">
+      같은 바코드는 화면에서 한 번 빠져야 다시 계산되므로 중복 합산을 막습니다.
+    </div>
 
     <div id="zoomRow" class="zoom-row">
       <span>거리용 줌</span>
@@ -197,7 +210,7 @@
     </div>
 
     <div class="hint">
-      인식 엔진: 실시간은 <b>EAN-13 전용 Quagga2</b>, 사진은 기존 엔진 사용.<br>
+      가격 바코드만 EAN-13으로 판독하며, 상단 이력번호 바코드는 계산하지 않습니다.<br>
       가격 계산: <code>109,400원 → 109,000원</code>처럼 1,000원 미만을 버립니다.
     </div>
   </section>
@@ -225,33 +238,41 @@
   "use strict";
 
   const RULE = {
-    requiredLength: 13,
-    prefix: "2",
-    pluStart: 1,
-    pluLength: 5,
-    priceStart: 6,
-    priceLength: 6,
-    roundUnit: 1000
+    requiredLength:13,
+    prefix:"2",
+    pluStart:1,
+    pluLength:5,
+    priceStart:6,
+    priceLength:6,
+    roundUnit:1000
   };
 
   const PRODUCT_NAMES = {
-    "00013": "한우 부채살"
+    "00013":"한우 부채살"
   };
 
-  // v3와 같은 키를 써서 기존 스캔 내역을 이어갑니다.
+  // 이전 버전 내역을 그대로 이어서 사용.
   const STORAGE_KEY = "barcode_total_items_v3_thousand_floor";
-  const SAME_CODE_GAP_MS = 1400;
+
+  // 같은 상품을 계속 비춰도 다시 더하지 않는다.
+  // 화면에서 바코드 후보가 완전히 사라진 상태가 이 시간 이상 유지돼야 같은 코드 재허용.
+  const CLEAR_FRAME_MS = 1200;
 
   let items = loadItems();
   let scanning = false;
   let photoScanner = null;
   let audioCtx = null;
-  let lastSeenCode = "";
-  let lastSeenAt = 0;
+
+  let lockedCode = "";
+  let lastBarcodeCandidateAt = 0;
+
   let detectedHandlerRegistered = false;
+  let processedHandlerRegistered = false;
+
   let activeTrack = null;
   let zoomCaps = null;
   let zoomTimer = null;
+  let lockOverlayTimer = null;
 
   const $ = id => document.getElementById(id);
 
@@ -265,6 +286,7 @@
   const scanZone = $("scanZone");
   const scanLine = $("scanLine");
   const scanHelp = $("scanHelp");
+  const scanLock = $("scanLock");
   const startBtn = $("startBtn");
   const stopBtn = $("stopBtn");
   const photoBtn = $("photoBtn");
@@ -280,68 +302,68 @@
   const zoomSlider = $("zoomSlider");
   const zoomValue = $("zoomValue");
 
-  function money(n) {
+  function money(n){
     return Number(n || 0).toLocaleString("ko-KR") + "원";
   }
 
-  function floorToUnit(n, unit) {
+  function floorToUnit(n, unit){
     return Math.floor(Number(n) / unit) * unit;
   }
 
-  function setStatus(text, kind = "") {
+  function setStatus(text, kind=""){
     statusEl.textContent = text;
     statusEl.className = "badge" + (kind ? " " + kind : "");
   }
 
-  function setMessage(text, kind = "") {
+  function setMessage(text, kind=""){
     messageEl.textContent = text;
     messageEl.className = "message" + (kind ? " " + kind : "");
   }
 
-  function loadItems() {
-    try {
+  function loadItems(){
+    try{
       const raw = localStorage.getItem(STORAGE_KEY);
       const parsed = raw ? JSON.parse(raw) : [];
       return Array.isArray(parsed) ? parsed : [];
-    } catch (_) {
+    }catch(_){
       return [];
     }
   }
 
-  function saveItems() {
-    try {
+  function saveItems(){
+    try{
       localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    } catch (_) {}
+    }catch(_){}
   }
 
-  function validateEan13(code) {
-    if (!/^\d{13}$/.test(code)) return false;
+  function validateEan13(code){
+    if(!/^\d{13}$/.test(code)) return false;
     const d = code.split("").map(Number);
     let sum = 0;
-    for (let i = 0; i < 12; i++) {
+    for(let i=0;i<12;i++){
       sum += d[i] * (i % 2 === 0 ? 1 : 3);
     }
     return ((10 - (sum % 10)) % 10) === d[12];
   }
 
-  function parseBarcode(raw) {
-    const code = String(raw || "").replace(/\D/g, "");
+  function parseBarcode(raw){
+    const code = String(raw || "").replace(/\D/g,"");
 
-    if (code.length !== RULE.requiredLength) {
-      return { ok:false, error:"13자리 EAN-13 바코드가 아닙니다." };
+    if(code.length !== RULE.requiredLength){
+      return {ok:false,error:"13자리 EAN-13 바코드가 아닙니다."};
     }
-    if (!validateEan13(code)) {
-      return { ok:false, error:"EAN-13 체크숫자가 맞지 않습니다. 다시 읽어주세요." };
+    if(!validateEan13(code)){
+      return {ok:false,error:"EAN-13 체크숫자가 맞지 않습니다. 다시 읽어주세요."};
     }
-    if (code[0] !== RULE.prefix) {
-      return { ok:false, error:"현재 설정은 2로 시작하는 가격 포함 바코드만 계산합니다." };
+    if(code[0] !== RULE.prefix){
+      return {ok:false,error:"현재 설정은 2로 시작하는 가격 포함 바코드만 계산합니다."};
     }
 
     const plu = code.slice(RULE.pluStart, RULE.pluStart + RULE.pluLength);
     const rawPrice = Number(code.slice(RULE.priceStart, RULE.priceStart + RULE.priceLength));
 
-    if (!Number.isInteger(rawPrice) || rawPrice <= 0) {
-      return { ok:false, error:"바코드에서 유효한 가격을 찾지 못했습니다." };
+    if(!Number.isInteger(rawPrice) || rawPrice <= 0){
+      return {ok:false,error:"바코드에서 유효한 가격을 찾지 못했습니다."};
     }
 
     const calcPrice = floorToUnit(rawPrice, RULE.roundUnit);
@@ -356,17 +378,18 @@
     };
   }
 
-  function addBarcode(raw, source = "scan") {
+  function addBarcode(raw, source="scan"){
     const r = parseBarcode(raw);
 
-    if (!r.ok) {
-      setStatus("오류", "bad");
-      setMessage(r.error, "bad");
+    if(!r.ok){
+      setStatus("오류","bad");
+      setMessage(r.error,"bad");
       badBuzz();
       return false;
     }
 
     const now = new Date();
+
     items.push({
       id:now.getTime().toString(36) + Math.random().toString(36).slice(2,7),
       code:r.code,
@@ -381,7 +404,7 @@
     saveItems();
     render();
 
-    setStatus("추가됨", "good");
+    setStatus("추가됨","good");
     setMessage(
       r.rawPrice !== r.calcPrice
         ? `${r.name} · ${money(r.rawPrice)} → ${money(r.calcPrice)} 계산`
@@ -389,42 +412,106 @@
       "good"
     );
 
-    goodBuzz();
+    successSound();
 
     summaryCard.classList.remove("flash");
     void summaryCard.offsetWidth;
     summaryCard.classList.add("flash");
+
+    showLockOverlay(r.calcPrice);
     return true;
   }
 
-  function acceptDetectedCode(raw, source = "camera") {
-    const code = String(raw || "").replace(/\D/g, "");
+  /*
+    중복 방지 핵심:
+    - 한 번 계산된 code는 lockedCode로 고정.
+    - 같은 code가 계속 카메라에 잡혀도 무시.
+    - Quagga locator가 바코드 후보 자체를 더 이상 찾지 못하는 상태가
+      CLEAR_FRAME_MS 이상 이어진 뒤에만 lock 해제.
+    - 다른 code는 즉시 계산 가능.
+  */
+  function acceptDetectedCode(raw, source="camera"){
+    const code = String(raw || "").replace(/\D/g,"");
 
-    // Quagga 오인식을 여기서 다시 걸러냅니다.
-    if (!/^\d{13}$/.test(code)) return;
-    if (code[0] !== RULE.prefix) return;
-    if (!validateEan13(code)) return;
+    if(!/^\d{13}$/.test(code)) return;
+    if(code[0] !== RULE.prefix) return;
+    if(!validateEan13(code)) return;
 
-    const now = Date.now();
+    lastBarcodeCandidateAt = Date.now();
 
-    // 같은 라벨이 화면에 계속 남아 있을 때 중복 합산 방지.
-    if (code === lastSeenCode && now - lastSeenAt < SAME_CODE_GAP_MS) {
-      lastSeenAt = now;
+    if(code === lockedCode){
       return;
     }
 
-    lastSeenCode = code;
-    lastSeenAt = now;
-    addBarcode(code, source);
+    if(addBarcode(code, source)){
+      lockedCode = code;
+    }
   }
 
-  function onQuaggaDetected(result) {
+  function onQuaggaDetected(result){
     const code = result?.codeResult?.code;
-    if (code) acceptDetectedCode(code, "camera");
+    if(code) acceptDetectedCode(code, "camera");
   }
 
-  function render() {
-    const total = items.reduce((sum, item) => sum + Number(item.price || 0), 0);
+  function hasBarcodeCandidate(result){
+    if(!result) return false;
+
+    if(result.box && Array.isArray(result.box) && result.box.length >= 4){
+      return true;
+    }
+
+    if(Array.isArray(result.boxes)){
+      return result.boxes.some(box => Array.isArray(box) && box.length >= 4);
+    }
+
+    return false;
+  }
+
+  function onQuaggaProcessed(result){
+    const now = Date.now();
+
+    if(hasBarcodeCandidate(result)){
+      lastBarcodeCandidateAt = now;
+      return;
+    }
+
+    if(lockedCode && now - lastBarcodeCandidateAt >= CLEAR_FRAME_MS){
+      lockedCode = "";
+      hideLockOverlay();
+      setStatus("다음 상품","good");
+      setMessage("바코드가 화면에서 빠졌습니다. 다음 상품을 보여주세요.","good");
+    }
+  }
+
+  function showLockOverlay(price){
+    if(lockOverlayTimer){
+      clearTimeout(lockOverlayTimer);
+      lockOverlayTimer = null;
+    }
+
+    scanLock.innerHTML =
+      `${money(price)} 인식 완료` +
+      `<small>같은 바코드는 다시 더하지 않습니다 · 다음 상품으로 바꿔 주세요</small>`;
+
+    scanLock.style.display = "block";
+
+    // 너무 오래 화면을 가리지 않되 lock 자체는 유지.
+    lockOverlayTimer = setTimeout(() => {
+      scanLock.style.display = "none";
+    }, 900);
+  }
+
+  function hideLockOverlay(){
+    if(lockOverlayTimer){
+      clearTimeout(lockOverlayTimer);
+      lockOverlayTimer = null;
+    }
+    scanLock.style.display = "none";
+  }
+
+  function render(){
+    const total = items.reduce((sum,item)=>sum + Number(item.price || 0),0);
+
     totalEl.textContent = money(total);
     countEl.textContent = items.length.toLocaleString("ko-KR") + "건";
 
@@ -432,7 +519,7 @@
     clearBtn.disabled = items.length === 0;
     csvBtn.disabled = items.length === 0;
 
-    if (items.length === 0) {
+    if(items.length === 0){
       listEl.innerHTML = '<div class="empty">아직 스캔한 항목이 없습니다.</div>';
       return;
     }
@@ -441,7 +528,7 @@
       const t = new Date(item.time);
       const hhmm = isNaN(t)
         ? ""
-        : t.toLocaleTimeString("ko-KR", { hour:"2-digit", minute:"2-digit" });
+        : t.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"});
 
       const raw = Number(item.rawPrice ?? item.price ?? 0);
       const calc = Number(item.price ?? 0);
@@ -461,7 +548,7 @@
     }).join("");
   }
 
-  function esc(v) {
+  function esc(v){
     return String(v ?? "")
       .replaceAll("&","&amp;")
       .replaceAll("<","&lt;")
@@ -470,116 +557,144 @@
       .replaceAll("'","&#039;");
   }
 
-  function unlockAudio() {
-    try {
-      if (!audioCtx) {
+  function unlockAudio(){
+    try{
+      if(!audioCtx){
         const Ctx = window.AudioContext || window.webkitAudioContext;
-        if (Ctx) audioCtx = new Ctx();
+        if(Ctx) audioCtx = new Ctx();
       }
-      if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
-    } catch (_) {}
+      if(audioCtx && audioCtx.state === "suspended"){
+        audioCtx.resume();
+      }
+    }catch(_){}
   }
 
-  function beep(freq = 880, duration = 0.08) {
-    try {
-      if (!audioCtx) return;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.055, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + duration);
-    } catch (_) {}
+  function tone(freq, start, duration, gainValue){
+    if(!audioCtx) return;
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = "square";
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime + start);
+
+    gain.gain.setValueAtTime(0.001, audioCtx.currentTime + start);
+    gain.gain.exponentialRampToValueAtTime(
+      gainValue,
+      audioCtx.currentTime + start + 0.008
+    );
+    gain.gain.exponentialRampToValueAtTime(
+      0.001,
+      audioCtx.currentTime + start + duration
+    );
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start(audioCtx.currentTime + start);
+    osc.stop(audioCtx.currentTime + start + duration + 0.01);
   }
 
-  function goodBuzz() {
-    beep(920, 0.08);
-    try { navigator.vibrate?.(70); } catch (_) {}
+  // 기존보다 훨씬 크게 들리는 2단계 삑 소리.
+  function successSound(){
+    try{
+      unlockAudio();
+      if(!audioCtx) return;
+
+      tone(1050, 0.00, 0.115, 0.22);
+      tone(1500, 0.12, 0.105, 0.20);
+
+      try{ navigator.vibrate?.([70,35,70]); }catch(_){}
+    }catch(_){}
   }
 
-  function badBuzz() {
-    beep(220, 0.12);
-    try { navigator.vibrate?.([80,50,80]); } catch (_) {}
+  function badBuzz(){
+    try{
+      unlockAudio();
+      if(audioCtx){
+        tone(240, 0, 0.18, 0.14);
+      }
+      try{ navigator.vibrate?.([90,50,90]); }catch(_){}
+    }catch(_){}
   }
 
-  function quaggaReady() {
+  function quaggaReady(){
     return !!window.Quagga;
   }
 
-  function photoEngineReady() {
+  function photoEngineReady(){
     return !!(window.Html5Qrcode && window.Html5QrcodeSupportedFormats);
   }
 
-  function workersCount() {
-    // iPhone Safari에서 과도한 worker 수는 오히려 느려질 수 있어 최대 2개.
+  function workersCount(){
     const hc = Number(navigator.hardwareConcurrency || 2);
     return Math.max(1, Math.min(2, hc - 1 || 1));
   }
 
-  function quaggaConfig() {
+  function quaggaConfig(){
     return {
       inputStream:{
         name:"Live",
         type:"LiveStream",
         target:document.querySelector("#interactive"),
 
-        // 작은 바코드를 멀리서도 읽기 위해 처리 해상도를 높입니다.
+        // 멀리 있는 작은 바코드 선도 살리기 위해 높은 처리 해상도 유지.
         size:1920,
 
         constraints:{
-          width:{ ideal:1920, min:1280 },
-          height:{ ideal:1080, min:720 },
-          facingMode:{ ideal:"environment" },
-          frameRate:{ ideal:30, min:15 }
+          width:{ideal:1920,min:1280},
+          height:{ideal:1080,min:720},
+          facingMode:{ideal:"environment"},
+          frameRate:{ideal:30,min:15}
         },
 
-        // 사용자가 중앙에 맞춰 주는 대신 탐색 범위를 줄여 속도/정확도를 올립니다.
+        // 상단 이력번호 바코드보다 하단 가격 바코드가 들어오는 쪽을 넓게 검색.
         area:{
-          top:"29%",
-          right:"4%",
-          left:"4%",
-          bottom:"29%"
+          top:"32%",
+          right:"3%",
+          left:"3%",
+          bottom:"7%"
         }
       },
 
-      // 위치를 알고 있으므로 비싼 전체화면 locator를 끕니다.
-      locate:false,
+      /*
+        각도 자동 인식 핵심.
+        locate:false였던 이전 버전과 달리 true로 바꿔
+        약간 기울어진 바코드 위치/방향을 Quagga locator가 찾도록 한다.
+      */
+      locate:true,
 
-      // EAN-13 하나만 디코딩해 충돌과 연산량을 줄입니다.
       decoder:{
         readers:["ean_reader"],
         multiple:false
       },
 
-      frequency:15,
+      frequency:12,
       numOfWorkers:workersCount(),
 
       locator:{
         halfSample:false,
-        patchSize:"small"
+        patchSize:"medium"
       }
     };
   }
 
-  function initQuagga(config) {
-    return new Promise((resolve, reject) => {
-      Quagga.init(config, err => {
-        if (err) reject(err);
+  function initQuagga(config){
+    return new Promise((resolve,reject)=>{
+      Quagga.init(config,err=>{
+        if(err) reject(err);
         else resolve();
       });
     });
   }
 
-  async function applyCameraTuning() {
+  async function applyCameraTuning(){
     zoomRow.style.display = "none";
     zoomCaps = null;
 
-    try {
+    try{
       activeTrack = Quagga.CameraAccess?.getActiveTrack?.() || null;
-      if (!activeTrack) return;
+      if(!activeTrack) return;
 
       const settings = activeTrack.getSettings?.() || {};
       const caps = activeTrack.getCapabilities?.() || {};
@@ -590,26 +705,25 @@
           : "해상도 확인 불가";
 
       cameraInfo.textContent =
-        `실제 카메라: ${sizeText}` +
-        (settings.frameRate ? ` · ${Math.round(settings.frameRate)}fps` : "");
+        `카메라 ${sizeText}` +
+        (settings.frameRate ? ` · ${Math.round(settings.frameRate)}fps` : "") +
+        " · 각도 자동 탐색 ON · 중복 잠금 ON";
 
-      // 지원되는 기기에서는 연속 초점 요청.
-      try {
-        if (Array.isArray(caps.focusMode) && caps.focusMode.includes("continuous")) {
+      try{
+        if(Array.isArray(caps.focusMode) && caps.focusMode.includes("continuous")){
           await activeTrack.applyConstraints({
-            advanced:[{ focusMode:"continuous" }]
+            advanced:[{focusMode:"continuous"}]
           });
           cameraInfo.textContent += " · 연속초점";
         }
-      } catch (_) {}
+      }catch(_){}
 
-      // 브라우저가 zoom capability를 노출하면 거리 촬영용 줌을 제공.
-      if (
+      if(
         caps.zoom &&
         Number.isFinite(caps.zoom.min) &&
         Number.isFinite(caps.zoom.max) &&
         caps.zoom.max > caps.zoom.min
-      ) {
+      ){
         zoomCaps = caps.zoom;
 
         const min = Number(caps.zoom.min);
@@ -621,70 +735,64 @@
         zoomSlider.max = String(max);
         zoomSlider.step = String(step);
 
-        // 너무 가까이 가져가지 않아도 되도록 가능한 경우 1.4~1.6배를 기본 적용.
-        const preferred = Math.min(max, Math.max(min, 1.5));
+        const preferred = Math.min(max, Math.max(min, 1.35));
         let applied = current;
 
-        if (preferred > current + 0.05) {
-          try {
+        if(preferred > current + 0.05){
+          try{
             await activeTrack.applyConstraints({
-              advanced:[{ zoom:preferred }]
+              advanced:[{zoom:preferred}]
             });
             applied = Number(activeTrack.getSettings?.().zoom || preferred);
-          } catch (_) {}
+          }catch(_){}
         }
 
         zoomSlider.value = String(applied);
         zoomValue.textContent = applied.toFixed(1) + "×";
         zoomRow.style.display = "grid";
-      } else {
-        cameraInfo.textContent += " · 브라우저 줌 제어 없음";
       }
-    } catch (_) {
-      cameraInfo.textContent = "카메라는 실행 중입니다. 세부 카메라 제어는 이 브라우저에서 지원하지 않습니다.";
-    }
+    }catch(_){}
   }
 
-  async function applyZoom(value) {
-    if (!activeTrack || !zoomCaps) return;
-    const z = Number(value);
-    if (!Number.isFinite(z)) return;
+  async function applyZoom(value){
+    if(!activeTrack || !zoomCaps) return;
 
-    try {
+    const z = Number(value);
+    if(!Number.isFinite(z)) return;
+
+    try{
       await activeTrack.applyConstraints({
-        advanced:[{ zoom:z }]
+        advanced:[{zoom:z}]
       });
       const actual = Number(activeTrack.getSettings?.().zoom || z);
       zoomValue.textContent = actual.toFixed(1) + "×";
-    } catch (_) {}
+    }catch(_){}
   }
 
-  function cameraErrorText(err) {
+  function cameraErrorText(err){
     const text = String(err?.name || "") + " " + String(err?.message || err || "");
 
-    if (/NotAllowed|Permission|denied/i.test(text)) {
-      return "카메라 권한이 차단되었습니다. Safari의 이 사이트 카메라 권한을 허용해 주세요.";
+    if(/NotAllowed|Permission|denied/i.test(text)){
+      return "카메라 권한이 차단되었습니다. Safari의 사이트 카메라 권한을 허용해 주세요.";
     }
-    if (/NotFound|no camera|device/i.test(text)) {
+    if(/NotFound|no camera|device/i.test(text)){
       return "후면 카메라를 찾지 못했습니다.";
     }
-    if (/Overconstrained/i.test(text)) {
-      return "요청한 고해상도 카메라 설정을 사용할 수 없습니다.";
-    }
-    return "카메라 시작에 실패했습니다. Safari를 새로고침한 뒤 다시 시도해 주세요.";
+    return "카메라 시작에 실패했습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.";
   }
 
-  async function startCamera() {
+  async function startCamera(){
     unlockAudio();
-    if (scanning) return;
 
-    if (!window.isSecureContext) {
+    if(scanning) return;
+
+    if(!window.isSecureContext){
       setStatus("HTTPS 필요","bad");
       setMessage("실시간 카메라는 HTTPS에서 실행해야 합니다.","bad");
       return;
     }
 
-    if (!quaggaReady()) {
+    if(!quaggaReady()){
       setStatus("엔진 로드 실패","bad");
       setMessage("실시간 인식 엔진을 불러오지 못했습니다. 인터넷 연결 후 새로고침하세요.","bad");
       return;
@@ -694,19 +802,26 @@
     setStatus("카메라 연결 중");
     setMessage("고해상도 후면 카메라를 여는 중입니다.");
 
-    try {
-      // 혹시 남은 세션이 있으면 정리.
-      try { Quagga.stop(); } catch (_) {}
+    try{
+      try{ Quagga.stop(); }catch(_){}
 
       await initQuagga(quaggaConfig());
 
-      if (!detectedHandlerRegistered) {
+      if(!detectedHandlerRegistered){
         Quagga.onDetected(onQuaggaDetected);
         detectedHandlerRegistered = true;
       }
 
+      if(!processedHandlerRegistered){
+        Quagga.onProcessed(onQuaggaProcessed);
+        processedHandlerRegistered = true;
+      }
+
       Quagga.start();
       scanning = true;
+
+      lockedCode = "";
+      lastBarcodeCandidateAt = Date.now();
 
       cameraPlaceholder.style.display = "none";
       scanZone.style.display = "block";
@@ -714,21 +829,22 @@
       scanHelp.style.display = "block";
       stopBtn.disabled = false;
 
-      setStatus("고속 스캔 중","good");
-      setMessage("10~30cm 정도 거리에서 바코드를 흰 박스 안에 수평으로 맞춰보세요.","good");
+      setStatus("스캔 중","good");
+      setMessage("바코드가 약간 기울어져도 됩니다. 하단 가격 바코드만 큰 박스 안에 넣으세요.","good");
 
-      // 카메라가 안정화된 뒤 해상도/초점/줌 적용.
-      setTimeout(() => { applyCameraTuning(); }, 450);
-    } catch (err) {
+      setTimeout(()=>{ applyCameraTuning(); },450);
+    }catch(err){
       scanning = false;
       startBtn.disabled = false;
       stopBtn.disabled = true;
+
       cameraPlaceholder.style.display = "flex";
       scanZone.style.display = "none";
       scanLine.style.display = "none";
       scanHelp.style.display = "none";
+      hideLockOverlay();
 
-      try { Quagga.stop(); } catch (_) {}
+      try{ Quagga.stop(); }catch(_){}
 
       setStatus("카메라 오류","bad");
       setMessage(cameraErrorText(err),"bad");
@@ -736,19 +852,21 @@
     }
   }
 
-  async function stopCamera(updateUi = true) {
-    if (zoomTimer) {
+  async function stopCamera(updateUi=true){
+    if(zoomTimer){
       clearTimeout(zoomTimer);
       zoomTimer = null;
     }
 
-    if (scanning) {
-      try { Quagga.stop(); } catch (_) {}
+    if(scanning){
+      try{ Quagga.stop(); }catch(_){}
     }
 
     scanning = false;
     activeTrack = null;
     zoomCaps = null;
+    lockedCode = "";
+    lastBarcodeCandidateAt = 0;
 
     startBtn.disabled = false;
     stopBtn.disabled = true;
@@ -756,63 +874,74 @@
     scanZone.style.display = "none";
     scanLine.style.display = "none";
     scanHelp.style.display = "none";
+    hideLockOverlay();
     zoomRow.style.display = "none";
-    cameraInfo.textContent = "카메라를 시작하면 실제 해상도와 카메라 상태를 표시합니다.";
 
-    if (updateUi) {
+    cameraInfo.textContent =
+      "같은 바코드는 화면에서 한 번 빠져야 다시 계산되므로 중복 합산을 막습니다.";
+
+    if(updateUi){
       setStatus("대기");
       setMessage("실시간 카메라를 중지했습니다.");
     }
   }
 
-  async function scanPhoto(file) {
+  async function scanPhoto(file){
     unlockAudio();
-    if (!file) return;
+    if(!file) return;
 
-    if (!photoEngineReady()) {
+    if(!photoEngineReady()){
       setStatus("사진 엔진 오류","bad");
       setMessage("사진 판독 엔진을 불러오지 못했습니다. 인터넷 연결 후 새로고침하세요.","bad");
       photoInput.value = "";
       return;
     }
 
-    if (scanning) await stopCamera(false);
+    if(scanning) await stopCamera(false);
 
     setStatus("사진 판독 중");
-    setMessage("사진에서 EAN-13 바코드를 찾고 있습니다.");
+    setMessage("사진에서 EAN-13 가격 바코드를 찾고 있습니다.");
 
-    try {
-      if (!photoScanner) {
+    try{
+      if(!photoScanner){
         photoScanner = new Html5Qrcode(
           "photoReader",
-          { formatsToSupport:[Html5QrcodeSupportedFormats.EAN_13] },
+          {formatsToSupport:[Html5QrcodeSupportedFormats.EAN_13]},
           false
         );
       }
 
-      const decoded = await photoScanner.scanFile(file, false);
-      acceptDetectedCode(decoded, "photo");
-    } catch (_) {
+      const decoded = await photoScanner.scanFile(file,false);
+      const code = String(decoded || "").replace(/\D/g,"");
+
+      if(!/^\d{13}$/.test(code) || code[0] !== RULE.prefix || !validateEan13(code)){
+        throw new Error("not price barcode");
+      }
+
+      addBarcode(code,"photo");
+    }catch(_){
       setStatus("판독 실패","bad");
-      setMessage("사진에서 바코드를 읽지 못했습니다. 바코드가 크게 보이도록 촬영해 주세요.","bad");
+      setMessage("사진에서 가격 바코드를 읽지 못했습니다. 하단 가격 바코드가 크게 보이도록 촬영해 주세요.","bad");
       badBuzz();
-    } finally {
+    }finally{
       photoInput.value = "";
     }
   }
 
-  function deleteById(id) {
-    const index = items.findIndex(x => x.id === id);
-    if (index < 0) return;
-    items.splice(index, 1);
+  function deleteById(id){
+    const index = items.findIndex(x=>x.id === id);
+    if(index < 0) return;
+
+    items.splice(index,1);
     saveItems();
     render();
     setStatus("삭제됨");
     setMessage("항목 1개를 삭제했습니다.");
   }
 
-  function undoLast() {
-    if (!items.length) return;
+  function undoLast(){
+    if(!items.length) return;
+
     items.pop();
     saveItems();
     render();
@@ -820,9 +949,10 @@
     setMessage("마지막 항목을 삭제했습니다.");
   }
 
-  function clearAll() {
-    if (!items.length) return;
-    if (!confirm("스캔 내역과 합계를 모두 지울까요?")) return;
+  function clearAll(){
+    if(!items.length) return;
+    if(!confirm("스캔 내역과 합계를 모두 지울까요?")) return;
+
     items = [];
     saveItems();
     render();
@@ -830,12 +960,12 @@
     setMessage("모든 내역을 삭제했습니다.");
   }
 
-  function exportCsv() {
-    if (!items.length) return;
+  function exportCsv(){
+    if(!items.length) return;
 
     const rows = [
       ["시간","상품","PLU","바코드","표시가격","계산가격"],
-      ...items.map(item => [
+      ...items.map(item=>[
         new Date(item.time).toLocaleString("ko-KR"),
         item.name,
         item.plu,
@@ -849,10 +979,11 @@
       row.map(v => '"' + String(v ?? "").replaceAll('"','""') + '"').join(",")
     ).join("\r\n");
 
-    const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+    const blob = new Blob([csv],{type:"text/csv;charset=utf-8"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     const d = new Date();
+
     const ymd =
       d.getFullYear() +
       String(d.getMonth()+1).padStart(2,"0") +
@@ -863,53 +994,61 @@
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
 
-  startBtn.addEventListener("click", startCamera);
-  stopBtn.addEventListener("click", () => stopCamera(true));
+  startBtn.addEventListener("click",startCamera);
+  stopBtn.addEventListener("click",()=>stopCamera(true));
 
-  photoBtn.addEventListener("click", () => {
+  photoBtn.addEventListener("click",()=>{
     unlockAudio();
     photoInput.click();
   });
-  photoInput.addEventListener("change", () => scanPhoto(photoInput.files?.[0]));
 
-  zoomSlider.addEventListener("input", () => {
+  photoInput.addEventListener("change",()=>scanPhoto(photoInput.files?.[0]));
+
+  zoomSlider.addEventListener("input",()=>{
     const z = Number(zoomSlider.value);
     zoomValue.textContent = z.toFixed(1) + "×";
 
-    if (zoomTimer) clearTimeout(zoomTimer);
-    zoomTimer = setTimeout(() => {
+    if(zoomTimer) clearTimeout(zoomTimer);
+
+    zoomTimer = setTimeout(()=>{
       applyZoom(z);
-    }, 120);
+    },120);
   });
 
-  manualBtn.addEventListener("click", () => {
+  manualBtn.addEventListener("click",()=>{
     unlockAudio();
-    if (addBarcode(manualCode.value, "manual")) manualCode.value = "";
+
+    if(addBarcode(manualCode.value,"manual")){
+      manualCode.value = "";
+    }
   });
 
-  manualCode.addEventListener("keydown", e => {
-    if (e.key === "Enter") manualBtn.click();
+  manualCode.addEventListener("keydown",e=>{
+    if(e.key === "Enter") manualBtn.click();
   });
 
-  sampleBtn.addEventListener("click", () => {
+  sampleBtn.addEventListener("click",()=>{
     unlockAudio();
-    addBarcode("2000131094006", "sample");
+    addBarcode("2000131094006","sample");
   });
 
-  undoBtn.addEventListener("click", undoLast);
-  clearBtn.addEventListener("click", clearAll);
-  csvBtn.addEventListener("click", exportCsv);
+  undoBtn.addEventListener("click",undoLast);
+  clearBtn.addEventListener("click",clearAll);
+  csvBtn.addEventListener("click",exportCsv);
 
-  listEl.addEventListener("click", e => {
+  listEl.addEventListener("click",e=>{
     const btn = e.target.closest("[data-delete]");
-    if (btn) deleteById(btn.dataset.delete);
+    if(btn) deleteById(btn.dataset.delete);
   });
 
-  window.addEventListener("pagehide", () => {
-    try { if (scanning) Quagga.stop(); } catch (_) {}
+  window.addEventListener("pagehide",()=>{
+    try{
+      if(scanning) Quagga.stop();
+    }catch(_){}
   });
 
   render();
