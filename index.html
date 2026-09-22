@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#111827" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>바코드 합계기</title>
+  <title>바코드 합계기 v6</title>
 
   <!-- 실시간 1D 바코드 전용 -->
   <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.4.2/dist/quagga.min.js"></script>
@@ -194,7 +194,7 @@
     </div>
 
     <div id="cameraInfo" class="camera-info">
-      같은 바코드는 화면에서 한 번 빠져야 다시 계산되므로 중복 합산을 막습니다.
+      v6 · 같은 바코드는 화면에서 한 번 빠져야 다시 계산되므로 중복 합산을 막습니다.
     </div>
 
     <div id="zoomRow" class="zoom-row">
@@ -211,6 +211,9 @@
 
     <div class="hint">
       가격 바코드만 EAN-13으로 판독하며, 상단 이력번호 바코드는 계산하지 않습니다.<br>
+      실물 라벨로 확인된 코드는 정확히 표시하고, CL7200 화면 순서와 코드 배열이 맞아떨어지는 품목은 <b>추정</b>으로 표시합니다.<br>
+      확인 코드: 00001 국거리(냉장), 00005 산적(냉장), 00013 부채살(냉장), 00015 제비추리(냉장), 00095 도가니(냉동).<br>
+      특히 도가니는 냉장/냉동이 별도 코드로 보이므로 보관상태도 코드별로 구분합니다.<br>
       가격 계산: <code>109,400원 → 109,000원</code>처럼 1,000원 미만을 버립니다.
     </div>
   </section>
@@ -247,8 +250,60 @@
     roundUnit:1000
   };
 
-  const PRODUCT_NAMES = {
-    "00013":"한우 부채살"
+  /*
+    품목 판정 규칙
+    - "확인": 사용자가 올린 실제 라벨의 EAN-13 내부코드로 직접 확인.
+    - "추정": CL7200 화면의 좌→우, 위→아래 순서가 00001, 00002...로 이어진다고 가정.
+      실제 라벨 00001/00005/00013/00015가 이 배열과 정확히 일치해 패턴 근거가 있음.
+    - 냉동 도가니는 실제 라벨에서 내부코드 00095로 확인되어 냉장 도가니 추정코드와 분리.
+  */
+  const PRODUCT_CATALOG = {
+    "00001": { name:"한우 국거리",   storage:"냉장", confidence:"확인", source:"실물 라벨" },
+    "00002": { name:"한우 설도",     storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00003": { name:"한우 꽃등심",   storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00004": { name:"한우 앞다리살", storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00005": { name:"한우 산적",     storage:"냉장", confidence:"확인", source:"실물 라벨" },
+    "00006": { name:"한우 양지살",   storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00007": { name:"한우 사태",     storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00008": { name:"한우 다짐육",   storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+
+    "00009": { name:"한우 등심",     storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00010": { name:"한우 채끝",     storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00011": { name:"한우 안심",     storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00012": { name:"한우 치마살",   storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00013": { name:"한우 부채살",   storage:"냉장", confidence:"확인", source:"실물 라벨" },
+    "00014": { name:"한우 업진살",   storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00015": { name:"한우 제비추리", storage:"냉장", confidence:"확인", source:"실물 라벨" },
+    "00016": { name:"한우 차돌박이", storage:"냉동", confidence:"추정", source:"CL7200 순서" },
+
+    "00017": { name:"한우 갈비살",   storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00018": { name:"한우 살치살",   storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00019": { name:"한우 안창살",   storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00020": { name:"한우 육전",     storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00021": { name:"한우 갈비",     storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00022": { name:"한우 불고기",   storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    // 00023은 화면 글자가 불명확하여 일부러 비워 둠.
+    "00024": { name:"한우 사골",     storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+
+    "00025": { name:"한우 등뼈",     storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00026": { name:"한우 엉치",     storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00027": { name:"한우 꼬리",     storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00028": { name:"한우 스지",     storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00029": { name:"한우 도가니",   storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00030": { name:"한우 보섭살",   storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00031": { name:"한우 장조림",   storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00032": { name:"한우 우둔살",   storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+
+    "00033": { name:"한우 홍두깨",   storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00034": { name:"한우 목심",     storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00035": { name:"한우 구이",     storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    // 00036은 화면 글자가 불명확하여 일부러 비워 둠.
+    "00037": { name:"한우 새우살",   storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00038": { name:"한우 곰국",     storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00039": { name:"소머리편육",    storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+    "00040": { name:"한우 토시살",   storage:"냉장", confidence:"추정", source:"CL7200 순서" },
+
+    "00095": { name:"한우 도가니",   storage:"냉동", confidence:"확인", source:"실물 라벨" }
   };
 
   // 이전 버전 내역을 그대로 이어서 사용.
@@ -359,7 +414,7 @@
       return {ok:false,error:"현재 설정은 2로 시작하는 가격 포함 바코드만 계산합니다."};
     }
 
-    const plu = code.slice(RULE.pluStart, RULE.pluStart + RULE.pluLength);
+    const itemCode = code.slice(RULE.pluStart, RULE.pluStart + RULE.pluLength);
     const rawPrice = Number(code.slice(RULE.priceStart, RULE.priceStart + RULE.priceLength));
 
     if(!Number.isInteger(rawPrice) || rawPrice <= 0){
@@ -367,14 +422,17 @@
     }
 
     const calcPrice = floorToUnit(rawPrice, RULE.roundUnit);
+    const product = PRODUCT_CATALOG[itemCode] || null;
 
     return {
       ok:true,
       code,
-      plu,
+      itemCode,
       rawPrice,
       calcPrice,
-      name:PRODUCT_NAMES[plu] || ("PLU " + plu)
+      name:product?.name || ("미등록 품목"),
+      storage:product?.storage || "미확인",
+      confidence:product?.confidence || "미등록"
     };
   }
 
@@ -393,10 +451,14 @@
     items.push({
       id:now.getTime().toString(36) + Math.random().toString(36).slice(2,7),
       code:r.code,
-      plu:r.plu,
+      itemCode:r.itemCode,
+      // 이전 버전 호환용
+      plu:r.itemCode,
       rawPrice:r.rawPrice,
       price:r.calcPrice,
       name:r.name,
+      storage:r.storage,
+      confidence:r.confidence,
       source,
       time:now.toISOString()
     });
@@ -405,10 +467,17 @@
     render();
 
     setStatus("추가됨","good");
+    const productText =
+      r.confidence === "확인"
+        ? `${r.name} · ${r.storage}`
+        : r.confidence === "추정"
+          ? `추정: ${r.name} · ${r.storage}`
+          : `미등록 품목 · 내부코드 ${r.itemCode}`;
+
     setMessage(
       r.rawPrice !== r.calcPrice
-        ? `${r.name} · ${money(r.rawPrice)} → ${money(r.calcPrice)} 계산`
-        : `${r.name} · ${money(r.calcPrice)} 추가`,
+        ? `${productText} · ${money(r.rawPrice)} → ${money(r.calcPrice)} 계산`
+        : `${productText} · ${money(r.calcPrice)} 추가`,
       "good"
     );
 
@@ -418,7 +487,7 @@
     void summaryCard.offsetWidth;
     summaryCard.classList.add("flash");
 
-    showLockOverlay(r.calcPrice);
+    showLockOverlay(r);
     return true;
   }
 
@@ -483,15 +552,22 @@
     }
   }
 
-  function showLockOverlay(price){
+  function showLockOverlay(result){
     if(lockOverlayTimer){
       clearTimeout(lockOverlayTimer);
       lockOverlayTimer = null;
     }
 
+    const productLine =
+      result.confidence === "확인"
+        ? `${result.name} · ${result.storage}`
+        : result.confidence === "추정"
+          ? `추정: ${result.name} · ${result.storage}`
+          : `내부코드 ${result.itemCode}`;
+
     scanLock.innerHTML =
-      `${money(price)} 인식 완료` +
-      `<small>같은 바코드는 다시 더하지 않습니다 · 다음 상품으로 바꿔 주세요</small>`;
+      `${money(result.calcPrice)} 인식 완료` +
+      `<small>${esc(productLine)}<br>같은 바코드는 다시 더하지 않습니다 · 다음 상품으로 바꿔 주세요</small>`;
 
     scanLock.style.display = "block";
 
@@ -536,11 +612,22 @@
         ? `표시 ${money(raw)} → 계산 ${money(calc)}`
         : `계산 ${money(calc)}`;
 
+      const itemCode = item.itemCode || item.plu || "";
+      const catalog = PRODUCT_CATALOG[itemCode] || null;
+      const name = catalog?.name || item.name || "미등록 품목";
+      const storage = catalog?.storage || item.storage || "미확인";
+      const confidence = catalog?.confidence || item.confidence || "미등록";
+      const title = storage === "미확인" ? name : `${name} · ${storage}`;
+      const confidenceText =
+        confidence === "추정" ? " · 화면순서 추정"
+        : confidence === "확인" ? " · 실물확인"
+        : "";
+
       return `
         <div class="item">
           <div class="item-main">
-            <div class="item-name">${esc(item.name || ("PLU " + item.plu))}</div>
-            <div class="item-meta">${esc(item.code)} · ${esc(hhmm)}<br>${esc(priceInfo)}</div>
+            <div class="item-name">${esc(title)}</div>
+            <div class="item-meta">내부코드 ${esc(itemCode)}${esc(confidenceText)} · ${esc(item.code)} · ${esc(hhmm)}<br>${esc(priceInfo)}</div>
           </div>
           <div class="item-price">${money(calc)}</div>
           <button class="icon-btn" type="button" data-delete="${esc(item.id)}" aria-label="삭제">×</button>
@@ -878,7 +965,7 @@
     zoomRow.style.display = "none";
 
     cameraInfo.textContent =
-      "같은 바코드는 화면에서 한 번 빠져야 다시 계산되므로 중복 합산을 막습니다.";
+      "v6 · 같은 바코드는 화면에서 한 번 빠져야 다시 계산되므로 중복 합산을 막습니다.";
 
     if(updateUi){
       setStatus("대기");
@@ -964,15 +1051,22 @@
     if(!items.length) return;
 
     const rows = [
-      ["시간","상품","PLU","바코드","표시가격","계산가격"],
-      ...items.map(item=>[
-        new Date(item.time).toLocaleString("ko-KR"),
-        item.name,
-        item.plu,
-        item.code,
-        item.rawPrice ?? item.price,
-        item.price
-      ])
+      ["시간","상품","보관상태","판정","판정근거","바코드 내부코드","바코드","표시가격","계산가격"],
+      ...items.map(item=>{
+        const itemCode = item.itemCode || item.plu || "";
+        const catalog = PRODUCT_CATALOG[itemCode] || null;
+        return [
+          new Date(item.time).toLocaleString("ko-KR"),
+          catalog?.name || item.name || "미등록 품목",
+          catalog?.storage || item.storage || "미확인",
+          catalog?.confidence || item.confidence || "미등록",
+          catalog?.source || "",
+          itemCode,
+          item.code,
+          item.rawPrice ?? item.price,
+          item.price
+        ];
+      })
     ];
 
     const csv = "\ufeff" + rows.map(row =>
