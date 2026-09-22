@@ -5,173 +5,138 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#111827" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>바코드 합계기</title>
 
-  <!-- iPhone/Android 공용 바코드 엔진 -->
+  <!-- 실시간 1D 바코드 전용 엔진: Quagga2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.4.2/dist/quagga.min.js"></script>
+
+  <!-- 사진 판독은 기존에 잘 동작하던 엔진 유지 -->
   <script
     src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"
     onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'">
   </script>
 
   <style>
-    :root {
+    :root{
       --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280; --line:#e5e7eb;
       --primary:#111827; --good:#047857; --bad:#b91c1c; --warn:#92400e; --blue:#1d4ed8;
       --r:18px;
     }
-    * { box-sizing:border-box; }
-    body {
-      margin:0; background:var(--bg); color:var(--text);
+    *{box-sizing:border-box}
+    body{
+      margin:0;background:var(--bg);color:var(--text);
       font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
       -webkit-font-smoothing:antialiased;
     }
-    button,input { font:inherit; }
-    .app {
-      width:min(760px,100%);
-      margin:0 auto;
-      padding:12px 12px calc(28px + env(safe-area-inset-bottom));
-    }
-    .top {
-      display:flex; align-items:center; justify-content:space-between;
-      gap:10px; margin:3px 2px 12px;
-    }
-    h1 { font-size:22px; margin:0; letter-spacing:-.035em; }
-    .badge {
-      padding:7px 10px; border-radius:999px; background:#e5e7eb; color:#374151;
-      font-size:12px; font-weight:800; white-space:nowrap;
-    }
-    .badge.good { background:#d1fae5; color:#065f46; }
-    .badge.bad { background:#fee2e2; color:#991b1b; }
-    .badge.warn { background:#fef3c7; color:#92400e; }
+    button,input{font:inherit}
+    .app{width:min(760px,100%);margin:0 auto;padding:12px 12px calc(28px + env(safe-area-inset-bottom))}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:3px 2px 12px}
+    h1{font-size:22px;margin:0;letter-spacing:-.035em}
+    .badge{padding:7px 10px;border-radius:999px;background:#e5e7eb;color:#374151;font-size:12px;font-weight:800;white-space:nowrap}
+    .badge.good{background:#d1fae5;color:#065f46}
+    .badge.bad{background:#fee2e2;color:#991b1b}
+    .badge.warn{background:#fef3c7;color:#92400e}
 
-    .card {
-      background:var(--card); border:1px solid var(--line); border-radius:var(--r);
-      box-shadow:0 2px 10px rgba(17,24,39,.04);
-      padding:15px; margin-bottom:11px;
-    }
-    .summary {
-      display:grid; grid-template-columns:1fr auto; align-items:end; gap:10px 16px;
-    }
-    .label { color:var(--muted); font-size:12px; font-weight:800; }
-    .total {
-      font-size:clamp(36px,10vw,56px); font-weight:950; letter-spacing:-.055em;
-      line-height:1.05; margin-top:4px;
-    }
-    .count { text-align:right; font-size:20px; font-weight:900; padding-bottom:5px; }
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 2px 10px rgba(17,24,39,.04);padding:15px;margin-bottom:11px}
+    .summary{display:grid;grid-template-columns:1fr auto;align-items:end;gap:10px 16px}
+    .label{color:var(--muted);font-size:12px;font-weight:800}
+    .total{font-size:clamp(36px,10vw,56px);font-weight:950;letter-spacing:-.055em;line-height:1.05;margin-top:4px}
+    .count{text-align:right;font-size:20px;font-weight:900;padding-bottom:5px}
 
-    .camera-frame {
-      position:relative; width:100%; min-height:250px; background:#111827;
-      border-radius:14px; overflow:hidden; margin-bottom:11px;
+    .camera-frame{
+      position:relative;width:100%;height:min(58vh,480px);min-height:300px;
+      background:#111827;border-radius:14px;overflow:hidden;margin-bottom:11px;
     }
-    #reader {
-      width:100%; min-height:250px; background:#111827;
+    #interactive{
+      position:absolute;inset:0;width:100%;height:100%;background:#111827;overflow:hidden;
     }
-    #reader video {
-      width:100% !important;
-      max-height:62vh !important;
-      object-fit:cover !important;
+    #interactive video,
+    #interactive canvas{
+      position:absolute;inset:0;width:100% !important;height:100% !important;object-fit:cover !important;
     }
-    #reader img { display:none !important; }
-    #reader__scan_region {
-      min-height:250px !important;
-      background:#111827 !important;
-    }
-    #reader__dashboard { display:none !important; }
-    #cameraPlaceholder {
-      position:absolute; inset:0; z-index:2;
-      display:flex; align-items:center; justify-content:center;
-      text-align:center; padding:30px 18px; color:#d1d5db;
-      font-size:14px; line-height:1.55; pointer-events:none;
-      background:#111827;
-    }
-    .scanGuide {
-      position:absolute; z-index:3; left:7%; right:7%; top:50%; height:33%;
-      transform:translateY(-50%);
-      border:3px solid rgba(255,255,255,.92); border-radius:14px;
-      pointer-events:none; display:none;
-      box-shadow:0 0 0 2000px rgba(0,0,0,.18);
-    }
-    .scanLine {
-      position:absolute; z-index:3; left:8%; right:8%; top:50%; height:2px;
-      background:rgba(255,255,255,.85); pointer-events:none; display:none;
+    #interactive canvas{display:none !important}
+    #cameraPlaceholder{
+      position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;
+      text-align:center;padding:30px 18px;color:#d1d5db;font-size:14px;line-height:1.55;
+      pointer-events:none;background:#111827;
     }
 
-    .buttons { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-    button {
-      border:0; border-radius:13px; padding:13px 12px; min-height:48px;
-      font-weight:900; cursor:pointer; -webkit-tap-highlight-color:transparent;
+    /* Quagga 입력 영역과 같은 중앙 가로 띠 */
+    .scan-zone{
+      position:absolute;z-index:5;left:4%;right:4%;top:29%;bottom:29%;
+      border:3px solid rgba(255,255,255,.96);border-radius:14px;pointer-events:none;display:none;
+      box-shadow:0 0 0 2000px rgba(0,0,0,.24);
     }
-    button.primary { background:var(--primary); color:#fff; }
-    button.secondary { background:#e5e7eb; color:#111827; }
-    button.danger { background:#fee2e2; color:#991b1b; }
-    button.photo { background:var(--blue); color:white; }
-    button:disabled { opacity:.45; cursor:default; }
-    .full { grid-column:1/-1; }
-
-    .message {
-      margin-top:10px; min-height:20px; color:var(--muted);
-      font-size:13px; line-height:1.5;
+    .scan-line{
+      position:absolute;z-index:6;left:5%;right:5%;top:50%;height:2px;
+      background:rgba(255,255,255,.9);pointer-events:none;display:none;
     }
-    .message.good { color:var(--good); font-weight:800; }
-    .message.bad { color:var(--bad); font-weight:800; }
-    .message.warn { color:var(--warn); font-weight:800; }
-
-    .info {
-      margin-top:10px; padding:10px 12px; border-radius:12px;
-      background:#f9fafb; border:1px solid var(--line);
-      color:#374151; font-size:12px; line-height:1.55;
-    }
-    .info b { font-weight:950; }
-
-    .manual {
-      display:grid; grid-template-columns:1fr auto; gap:8px; margin-top:11px;
-    }
-    input[type=text] {
-      width:100%; border:1px solid #d1d5db; border-radius:12px;
-      padding:12px 13px; min-height:48px; outline:none; background:white;
-    }
-    input[type=text]:focus {
-      border-color:#4b5563; box-shadow:0 0 0 3px rgba(17,24,39,.07);
-    }
-    .hint { margin-top:9px; color:var(--muted); font-size:12px; line-height:1.55; }
-    code { background:#f3f4f6; padding:2px 5px; border-radius:5px; }
-
-    .section-title {
-      display:flex; align-items:center; justify-content:space-between;
-      gap:8px; margin-bottom:10px;
-    }
-    .section-title h2 { margin:0; font-size:17px; letter-spacing:-.02em; }
-
-    .empty { color:var(--muted); font-size:14px; padding:18px 4px; text-align:center; }
-    .item {
-      display:grid; grid-template-columns:1fr auto auto; gap:8px 10px; align-items:center;
-      border-top:1px solid var(--line); padding:11px 0;
-    }
-    .item:first-child { border-top:0; }
-    .item-main { min-width:0; }
-    .item-name { font-weight:900; line-height:1.3; }
-    .item-meta {
-      margin-top:3px; color:var(--muted); font-size:11px;
-      overflow-wrap:anywhere; line-height:1.45;
-    }
-    .item-price { font-size:18px; font-weight:950; white-space:nowrap; }
-    .icon-btn {
-      width:38px; height:38px; min-height:38px; padding:0; border-radius:10px;
-      background:#f3f4f6; color:#6b7280; font-size:17px;
+    .scan-help{
+      position:absolute;z-index:6;left:0;right:0;top:calc(29% - 27px);
+      text-align:center;color:#fff;font-size:12px;font-weight:800;pointer-events:none;display:none;
+      text-shadow:0 1px 3px rgba(0,0,0,.7);
     }
 
-    .flash { animation:flash .45s ease-out; }
-    @keyframes flash {
-      0% { box-shadow:0 0 0 0 rgba(4,120,87,.45); }
-      100% { box-shadow:0 0 0 14px rgba(4,120,87,0); }
+    #photoReader{position:absolute;left:-9999px;width:2px;height:2px;overflow:hidden}
+
+    .buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    button{
+      border:0;border-radius:13px;padding:13px 12px;min-height:48px;font-weight:900;cursor:pointer;
+      -webkit-tap-highlight-color:transparent;
+    }
+    button.primary{background:var(--primary);color:#fff}
+    button.secondary{background:#e5e7eb;color:#111827}
+    button.danger{background:#fee2e2;color:#991b1b}
+    button.photo{background:var(--blue);color:white}
+    button:disabled{opacity:.45;cursor:default}
+    .full{grid-column:1/-1}
+
+    .message{margin-top:10px;min-height:20px;color:var(--muted);font-size:13px;line-height:1.5}
+    .message.good{color:var(--good);font-weight:800}
+    .message.bad{color:var(--bad);font-weight:800}
+    .message.warn{color:var(--warn);font-weight:800}
+
+    .camera-info{
+      margin-top:9px;padding:9px 11px;border-radius:11px;background:#f9fafb;border:1px solid var(--line);
+      color:#4b5563;font-size:12px;line-height:1.45;
     }
 
-    @media(max-width:480px) {
-      .app { padding-left:9px; padding-right:9px; }
-      .card { padding:13px; }
-      .manual { grid-template-columns:1fr; }
-      .manual button { width:100%; }
+    .zoom-row{
+      display:none;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;margin-top:10px;
+      padding:10px 11px;border-radius:11px;background:#f9fafb;border:1px solid var(--line);
+      font-size:12px;font-weight:800;
+    }
+    .zoom-row input{width:100%}
+    #zoomValue{min-width:42px;text-align:right}
+
+    .manual{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:11px}
+    input[type=text]{
+      width:100%;border:1px solid #d1d5db;border-radius:12px;padding:12px 13px;min-height:48px;outline:none;background:white
+    }
+    input[type=text]:focus{border-color:#4b5563;box-shadow:0 0 0 3px rgba(17,24,39,.07)}
+    .hint{margin-top:9px;color:var(--muted);font-size:12px;line-height:1.55}
+    code{background:#f3f4f6;padding:2px 5px;border-radius:5px}
+
+    .section-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+    .section-title h2{margin:0;font-size:17px;letter-spacing:-.02em}
+    .empty{color:var(--muted);font-size:14px;padding:18px 4px;text-align:center}
+    .item{display:grid;grid-template-columns:1fr auto auto;gap:8px 10px;align-items:center;border-top:1px solid var(--line);padding:11px 0}
+    .item:first-child{border-top:0}
+    .item-main{min-width:0}
+    .item-name{font-weight:900;line-height:1.3}
+    .item-meta{margin-top:3px;color:var(--muted);font-size:11px;overflow-wrap:anywhere;line-height:1.45}
+    .item-price{font-size:18px;font-weight:950;white-space:nowrap}
+    .icon-btn{width:38px;height:38px;min-height:38px;padding:0;border-radius:10px;background:#f3f4f6;color:#6b7280;font-size:17px}
+
+    .flash{animation:flash .45s ease-out}
+    @keyframes flash{0%{box-shadow:0 0 0 0 rgba(4,120,87,.45)}100%{box-shadow:0 0 0 14px rgba(4,120,87,0)}}
+
+    @media(max-width:480px){
+      .app{padding-left:9px;padding-right:9px}
+      .card{padding:13px}
+      .camera-frame{height:52vh;min-height:330px}
+      .manual{grid-template-columns:1fr}
+      .manual button{width:100%}
     }
   </style>
 </head>
@@ -184,7 +149,7 @@
 
   <section id="summaryCard" class="card summary">
     <div>
-      <div class="label">합계 · 1,000원 단위 절사 적용</div>
+      <div class="label">합계 · 1,000원 단위 절사</div>
       <div id="total" class="total">0원</div>
     </div>
     <div>
@@ -195,25 +160,35 @@
 
   <section class="card">
     <div class="camera-frame">
-      <div id="reader"></div>
+      <div id="interactive"></div>
       <div id="cameraPlaceholder">
         실시간 카메라를 시작하세요.<br>
-        iPhone은 Safari, Android는 Chrome 사용을 권장합니다.
+        iPhone은 Safari, Android는 Chrome을 권장합니다.
       </div>
-      <div id="scanGuide" class="scanGuide"></div>
-      <div id="scanLine" class="scanLine"></div>
+      <div id="scanZone" class="scan-zone"></div>
+      <div id="scanLine" class="scan-line"></div>
+      <div id="scanHelp" class="scan-help">바코드를 흰 박스 안에 수평으로 맞추세요</div>
     </div>
+    <div id="photoReader"></div>
 
     <div class="buttons">
-      <button id="startBtn" class="primary" type="button">실시간 카메라 시작</button>
+      <button id="startBtn" class="primary" type="button">고속 스캔 시작</button>
       <button id="stopBtn" class="secondary" type="button" disabled>카메라 중지</button>
-      <button id="photoBtn" class="photo full" type="button">사진 촬영으로 바코드 읽기</button>
+      <button id="photoBtn" class="photo full" type="button">사진 촬영으로 읽기</button>
       <input id="photoInput" type="file" accept="image/*" capture="environment" hidden />
     </div>
 
-    <div id="message" class="message">바코드는 카메라와 평행하게, 화면 중앙에 크게 맞추면 잘 읽힙니다.</div>
+    <div id="message" class="message">
+      EAN-13 전용 고속 인식입니다. 바코드가 중앙 가로 영역에 들어오면 자동 계산합니다.
+    </div>
 
-    <div id="deviceInfo" class="info"></div>
+    <div id="cameraInfo" class="camera-info">카메라를 시작하면 실제 해상도와 카메라 상태를 표시합니다.</div>
+
+    <div id="zoomRow" class="zoom-row">
+      <span>거리용 줌</span>
+      <input id="zoomSlider" type="range" />
+      <span id="zoomValue">1.0×</span>
+    </div>
 
     <div class="manual">
       <input id="manualCode" type="text" inputmode="numeric" autocomplete="off" maxlength="13"
@@ -222,17 +197,17 @@
     </div>
 
     <div class="hint">
-      바코드 규칙: <code>2 + PLU 5자리 + 가격 6자리 + 체크숫자</code><br>
-      계산 규칙: 100원 단위 이하는 버리고 1,000원 단위로 합산합니다.<br>
-      예: <code>2000131094006</code> → 표시가 109,400원 → <b>계산 109,000원</b>
+      인식 엔진: 실시간은 <b>EAN-13 전용 Quagga2</b>, 사진은 기존 엔진 사용.<br>
+      가격 계산: <code>109,400원 → 109,000원</code>처럼 1,000원 미만을 버립니다.
     </div>
   </section>
 
   <section class="card">
     <div class="section-title">
       <h2>스캔 내역</h2>
-      <button id="sampleBtn" class="secondary" type="button"
-              style="min-height:36px;padding:7px 10px;font-size:12px">샘플 테스트</button>
+      <button id="sampleBtn" class="secondary" type="button" style="min-height:36px;padding:7px 10px;font-size:12px">
+        샘플 테스트
+      </button>
     </div>
 
     <div id="list"></div>
@@ -263,17 +238,23 @@
     "00013": "한우 부채살"
   };
 
+  // v3와 같은 키를 써서 기존 스캔 내역을 이어갑니다.
   const STORAGE_KEY = "barcode_total_items_v3_thousand_floor";
-  const SAME_CODE_GAP_MS = 1500;
+  const SAME_CODE_GAP_MS = 1400;
 
   let items = loadItems();
-  let scanner = null;
   let scanning = false;
+  let photoScanner = null;
   let audioCtx = null;
   let lastSeenCode = "";
   let lastSeenAt = 0;
+  let detectedHandlerRegistered = false;
+  let activeTrack = null;
+  let zoomCaps = null;
+  let zoomTimer = null;
 
   const $ = id => document.getElementById(id);
+
   const statusEl = $("status");
   const totalEl = $("total");
   const countEl = $("count");
@@ -281,8 +262,9 @@
   const summaryCard = $("summaryCard");
   const messageEl = $("message");
   const cameraPlaceholder = $("cameraPlaceholder");
-  const scanGuide = $("scanGuide");
+  const scanZone = $("scanZone");
   const scanLine = $("scanLine");
+  const scanHelp = $("scanHelp");
   const startBtn = $("startBtn");
   const stopBtn = $("stopBtn");
   const photoBtn = $("photoBtn");
@@ -293,7 +275,10 @@
   const undoBtn = $("undoBtn");
   const clearBtn = $("clearBtn");
   const csvBtn = $("csvBtn");
-  const deviceInfo = $("deviceInfo");
+  const cameraInfo = $("cameraInfo");
+  const zoomRow = $("zoomRow");
+  const zoomSlider = $("zoomSlider");
+  const zoomValue = $("zoomValue");
 
   function money(n) {
     return Number(n || 0).toLocaleString("ko-KR") + "원";
@@ -367,7 +352,7 @@
       plu,
       rawPrice,
       calcPrice,
-      name: PRODUCT_NAMES[plu] || ("PLU " + plu)
+      name:PRODUCT_NAMES[plu] || ("PLU " + plu)
     };
   }
 
@@ -383,7 +368,7 @@
 
     const now = new Date();
     items.push({
-      id: now.getTime().toString(36) + Math.random().toString(36).slice(2,7),
+      id:now.getTime().toString(36) + Math.random().toString(36).slice(2,7),
       code:r.code,
       plu:r.plu,
       rawPrice:r.rawPrice,
@@ -397,23 +382,32 @@
     render();
 
     setStatus("추가됨", "good");
-    if (r.rawPrice !== r.calcPrice) {
-      setMessage(`${r.name} · ${money(r.rawPrice)} → ${money(r.calcPrice)} 계산`, "good");
-    } else {
-      setMessage(`${r.name} · ${money(r.calcPrice)} 추가`, "good");
-    }
+    setMessage(
+      r.rawPrice !== r.calcPrice
+        ? `${r.name} · ${money(r.rawPrice)} → ${money(r.calcPrice)} 계산`
+        : `${r.name} · ${money(r.calcPrice)} 추가`,
+      "good"
+    );
 
     goodBuzz();
+
     summaryCard.classList.remove("flash");
     void summaryCard.offsetWidth;
     summaryCard.classList.add("flash");
     return true;
   }
 
-  function handleDetected(decodedText, source = "camera") {
-    const code = String(decodedText || "").replace(/\D/g, "");
+  function acceptDetectedCode(raw, source = "camera") {
+    const code = String(raw || "").replace(/\D/g, "");
+
+    // Quagga 오인식을 여기서 다시 걸러냅니다.
+    if (!/^\d{13}$/.test(code)) return;
+    if (code[0] !== RULE.prefix) return;
+    if (!validateEan13(code)) return;
+
     const now = Date.now();
 
+    // 같은 라벨이 화면에 계속 남아 있을 때 중복 합산 방지.
     if (code === lastSeenCode && now - lastSeenAt < SAME_CODE_GAP_MS) {
       lastSeenAt = now;
       return;
@@ -422,6 +416,11 @@
     lastSeenCode = code;
     lastSeenAt = now;
     addBarcode(code, source);
+  }
+
+  function onQuaggaDetected(result) {
+    const code = result?.codeResult?.code;
+    if (code) acceptDetectedCode(code, "camera");
   }
 
   function render() {
@@ -464,11 +463,11 @@
 
   function esc(v) {
     return String(v ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
   }
 
   function unlockAudio() {
@@ -477,9 +476,7 @@
         const Ctx = window.AudioContext || window.webkitAudioContext;
         if (Ctx) audioCtx = new Ctx();
       }
-      if (audioCtx && audioCtx.state === "suspended") {
-        audioCtx.resume();
-      }
+      if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
     } catch (_) {}
   }
 
@@ -488,11 +485,9 @@
       if (!audioCtx) return;
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.055, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
@@ -510,115 +505,173 @@
     try { navigator.vibrate?.([80,50,80]); } catch (_) {}
   }
 
-  function libraryReady() {
+  function quaggaReady() {
+    return !!window.Quagga;
+  }
+
+  function photoEngineReady() {
     return !!(window.Html5Qrcode && window.Html5QrcodeSupportedFormats);
   }
 
-  function detectDevice() {
-    const ua = navigator.userAgent || "";
-    const isIOS =
-      /iPhone|iPad|iPod/i.test(ua) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
-    const isAndroid = /Android/i.test(ua);
-
-    if (!window.isSecureContext) {
-      deviceInfo.innerHTML =
-        "<b>HTTPS가 아닙니다.</b> 실시간 카메라는 HTTPS에서 사용하세요.";
-      deviceInfo.style.color = "#991b1b";
-      return;
-    }
-
-    if (isIOS) {
-      deviceInfo.innerHTML =
-        "<b>iPhone/iPad 감지.</b> Safari에서 실시간 스캔을 사용하도록 수정한 버전입니다.";
-    } else if (isAndroid) {
-      deviceInfo.innerHTML =
-        "<b>Android 감지.</b> Chrome에서 사용하는 것을 권장합니다.";
-    } else {
-      deviceInfo.innerHTML =
-        "<b>HTTPS 연결 정상.</b> 카메라 권한을 허용하면 실시간 스캔을 사용할 수 있습니다.";
-    }
+  function workersCount() {
+    // iPhone Safari에서 과도한 worker 수는 오히려 느려질 수 있어 최대 2개.
+    const hc = Number(navigator.hardwareConcurrency || 2);
+    return Math.max(1, Math.min(2, hc - 1 || 1));
   }
 
-  function cameraErrorText(err) {
-    const name = String(err?.name || "");
-    const msg = String(err?.message || err || "");
-
-    if (/NotAllowedError|Permission|denied|not allowed/i.test(name + " " + msg)) {
-      return "카메라 권한이 차단되었습니다. iPhone에서는 설정 → Safari → 카메라 또는 주소창의 사이트 설정에서 카메라를 허용한 뒤 다시 시도하세요.";
-    }
-    if (/NotFoundError|Requested device not found|no cameras/i.test(name + " " + msg)) {
-      return "사용 가능한 카메라를 찾지 못했습니다.";
-    }
-    if (/NotReadableError|TrackStartError|Could not start/i.test(name + " " + msg)) {
-      return "다른 앱이 카메라를 사용 중일 수 있습니다. 카메라 앱이나 영상통화 앱을 닫고 다시 시도하세요.";
-    }
-    if (!window.isSecureContext) {
-      return "실시간 카메라는 HTTPS에서 실행해야 합니다.";
-    }
-    return "카메라를 시작하지 못했습니다. Safari를 완전히 닫았다가 다시 열거나 사진 촬영 방식을 사용해 주세요.";
-  }
-
-  function scanConfig() {
+  function quaggaConfig() {
     return {
-      fps: 12,
-      qrbox: (viewfinderWidth, viewfinderHeight) => {
-        const width = Math.min(Math.floor(viewfinderWidth * 0.88), 460);
-        const height = Math.min(
-          Math.max(Math.floor(width * 0.34), 105),
-          Math.floor(viewfinderHeight * 0.55)
-        );
-        return { width, height };
+      inputStream:{
+        name:"Live",
+        type:"LiveStream",
+        target:document.querySelector("#interactive"),
+
+        // 작은 바코드를 멀리서도 읽기 위해 처리 해상도를 높입니다.
+        size:1920,
+
+        constraints:{
+          width:{ ideal:1920, min:1280 },
+          height:{ ideal:1080, min:720 },
+          facingMode:{ ideal:"environment" },
+          frameRate:{ ideal:30, min:15 }
+        },
+
+        // 사용자가 중앙에 맞춰 주는 대신 탐색 범위를 줄여 속도/정확도를 올립니다.
+        area:{
+          top:"29%",
+          right:"4%",
+          left:"4%",
+          bottom:"29%"
+        }
       },
-      aspectRatio: 1.7777778,
-      disableFlip: true
+
+      // 위치를 알고 있으므로 비싼 전체화면 locator를 끕니다.
+      locate:false,
+
+      // EAN-13 하나만 디코딩해 충돌과 연산량을 줄입니다.
+      decoder:{
+        readers:["ean_reader"],
+        multiple:false
+      },
+
+      frequency:15,
+      numOfWorkers:workersCount(),
+
+      locator:{
+        halfSample:false,
+        patchSize:"small"
+      }
     };
   }
 
-  function newScanner() {
-    return new Html5Qrcode(
-      "reader",
-      {
-        formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13]
-      },
-      false
-    );
+  function initQuagga(config) {
+    return new Promise((resolve, reject) => {
+      Quagga.init(config, err => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
   }
 
-  async function tryStartWithFacingMode() {
-    scanner = newScanner();
-    await scanner.start(
-      { facingMode:"environment" },
-      scanConfig(),
-      decodedText => handleDetected(decodedText, "camera"),
-      () => {}
-    );
-  }
+  async function applyCameraTuning() {
+    zoomRow.style.display = "none";
+    zoomCaps = null;
 
-  async function tryStartWithCameraId() {
     try {
-      if (scanner) {
-        try { await scanner.clear(); } catch (_) {}
+      activeTrack = Quagga.CameraAccess?.getActiveTrack?.() || null;
+      if (!activeTrack) return;
+
+      const settings = activeTrack.getSettings?.() || {};
+      const caps = activeTrack.getCapabilities?.() || {};
+
+      const sizeText =
+        settings.width && settings.height
+          ? `${settings.width}×${settings.height}`
+          : "해상도 확인 불가";
+
+      cameraInfo.textContent =
+        `실제 카메라: ${sizeText}` +
+        (settings.frameRate ? ` · ${Math.round(settings.frameRate)}fps` : "");
+
+      // 지원되는 기기에서는 연속 초점 요청.
+      try {
+        if (Array.isArray(caps.focusMode) && caps.focusMode.includes("continuous")) {
+          await activeTrack.applyConstraints({
+            advanced:[{ focusMode:"continuous" }]
+          });
+          cameraInfo.textContent += " · 연속초점";
+        }
+      } catch (_) {}
+
+      // 브라우저가 zoom capability를 노출하면 거리 촬영용 줌을 제공.
+      if (
+        caps.zoom &&
+        Number.isFinite(caps.zoom.min) &&
+        Number.isFinite(caps.zoom.max) &&
+        caps.zoom.max > caps.zoom.min
+      ) {
+        zoomCaps = caps.zoom;
+
+        const min = Number(caps.zoom.min);
+        const max = Number(caps.zoom.max);
+        const step = Number(caps.zoom.step || 0.1);
+        const current = Number(activeTrack.getSettings?.().zoom || min);
+
+        zoomSlider.min = String(min);
+        zoomSlider.max = String(max);
+        zoomSlider.step = String(step);
+
+        // 너무 가까이 가져가지 않아도 되도록 가능한 경우 1.4~1.6배를 기본 적용.
+        const preferred = Math.min(max, Math.max(min, 1.5));
+        let applied = current;
+
+        if (preferred > current + 0.05) {
+          try {
+            await activeTrack.applyConstraints({
+              advanced:[{ zoom:preferred }]
+            });
+            applied = Number(activeTrack.getSettings?.().zoom || preferred);
+          } catch (_) {}
+        }
+
+        zoomSlider.value = String(applied);
+        zoomValue.textContent = applied.toFixed(1) + "×";
+        zoomRow.style.display = "grid";
+      } else {
+        cameraInfo.textContent += " · 브라우저 줌 제어 없음";
       }
-    } catch (_) {}
-
-    const cameras = await Html5Qrcode.getCameras();
-    if (!cameras || cameras.length === 0) {
-      throw new Error("No cameras found");
+    } catch (_) {
+      cameraInfo.textContent = "카메라는 실행 중입니다. 세부 카메라 제어는 이 브라우저에서 지원하지 않습니다.";
     }
+  }
 
-    const rear =
-      cameras.find(c => /back|rear|environment|후면/i.test(c.label || "")) ||
-      cameras[cameras.length - 1];
+  async function applyZoom(value) {
+    if (!activeTrack || !zoomCaps) return;
+    const z = Number(value);
+    if (!Number.isFinite(z)) return;
 
-    scanner = newScanner();
-    await scanner.start(
-      rear.id,
-      scanConfig(),
-      decodedText => handleDetected(decodedText, "camera"),
-      () => {}
-    );
+    try {
+      await activeTrack.applyConstraints({
+        advanced:[{ zoom:z }]
+      });
+      const actual = Number(activeTrack.getSettings?.().zoom || z);
+      zoomValue.textContent = actual.toFixed(1) + "×";
+    } catch (_) {}
+  }
+
+  function cameraErrorText(err) {
+    const text = String(err?.name || "") + " " + String(err?.message || err || "");
+
+    if (/NotAllowed|Permission|denied/i.test(text)) {
+      return "카메라 권한이 차단되었습니다. Safari의 이 사이트 카메라 권한을 허용해 주세요.";
+    }
+    if (/NotFound|no camera|device/i.test(text)) {
+      return "후면 카메라를 찾지 못했습니다.";
+    }
+    if (/Overconstrained/i.test(text)) {
+      return "요청한 고해상도 카메라 설정을 사용할 수 없습니다.";
+    }
+    return "카메라 시작에 실패했습니다. Safari를 새로고침한 뒤 다시 시도해 주세요.";
   }
 
   async function startCamera() {
@@ -626,84 +679,85 @@
     if (scanning) return;
 
     if (!window.isSecureContext) {
-      setStatus("HTTPS 필요", "bad");
-      setMessage("실시간 카메라는 HTTPS 주소에서 열어야 합니다.", "bad");
-      badBuzz();
+      setStatus("HTTPS 필요","bad");
+      setMessage("실시간 카메라는 HTTPS에서 실행해야 합니다.","bad");
       return;
     }
 
-    if (!libraryReady()) {
-      setStatus("엔진 로드 실패", "bad");
-      setMessage("바코드 엔진을 불러오지 못했습니다. 인터넷 연결을 확인하고 페이지를 새로고침하세요.", "bad");
-      badBuzz();
+    if (!quaggaReady()) {
+      setStatus("엔진 로드 실패","bad");
+      setMessage("실시간 인식 엔진을 불러오지 못했습니다. 인터넷 연결 후 새로고침하세요.","bad");
       return;
     }
 
     startBtn.disabled = true;
     setStatus("카메라 연결 중");
-    setMessage("카메라 권한 요청이 나오면 '허용'을 누르세요.");
-    cameraPlaceholder.style.display = "none";
+    setMessage("고해상도 후면 카메라를 여는 중입니다.");
 
     try {
-      try {
-        await tryStartWithFacingMode();
-      } catch (firstError) {
-        try {
-          if (scanner) {
-            try { await scanner.stop(); } catch (_) {}
-            try { await scanner.clear(); } catch (_) {}
-          }
-          scanner = null;
-        } catch (_) {}
+      // 혹시 남은 세션이 있으면 정리.
+      try { Quagga.stop(); } catch (_) {}
 
-        await tryStartWithCameraId();
+      await initQuagga(quaggaConfig());
+
+      if (!detectedHandlerRegistered) {
+        Quagga.onDetected(onQuaggaDetected);
+        detectedHandlerRegistered = true;
       }
 
+      Quagga.start();
       scanning = true;
-      stopBtn.disabled = false;
-      scanGuide.style.display = "block";
-      scanLine.style.display = "block";
 
-      setStatus("스캔 중", "good");
-      setMessage("바코드 전체가 흰 사각형 안에 들어오도록 맞추세요.", "good");
+      cameraPlaceholder.style.display = "none";
+      scanZone.style.display = "block";
+      scanLine.style.display = "block";
+      scanHelp.style.display = "block";
+      stopBtn.disabled = false;
+
+      setStatus("고속 스캔 중","good");
+      setMessage("10~30cm 정도 거리에서 바코드를 흰 박스 안에 수평으로 맞춰보세요.","good");
+
+      // 카메라가 안정화된 뒤 해상도/초점/줌 적용.
+      setTimeout(() => { applyCameraTuning(); }, 450);
     } catch (err) {
       scanning = false;
       startBtn.disabled = false;
       stopBtn.disabled = true;
-      scanGuide.style.display = "none";
-      scanLine.style.display = "none";
       cameraPlaceholder.style.display = "flex";
+      scanZone.style.display = "none";
+      scanLine.style.display = "none";
+      scanHelp.style.display = "none";
 
-      try {
-        if (scanner) {
-          try { await scanner.stop(); } catch (_) {}
-          try { await scanner.clear(); } catch (_) {}
-        }
-      } catch (_) {}
-      scanner = null;
+      try { Quagga.stop(); } catch (_) {}
 
-      setStatus("카메라 오류", "bad");
-      setMessage(cameraErrorText(err), "bad");
+      setStatus("카메라 오류","bad");
+      setMessage(cameraErrorText(err),"bad");
       badBuzz();
     }
   }
 
   async function stopCamera(updateUi = true) {
+    if (zoomTimer) {
+      clearTimeout(zoomTimer);
+      zoomTimer = null;
+    }
+
+    if (scanning) {
+      try { Quagga.stop(); } catch (_) {}
+    }
+
     scanning = false;
+    activeTrack = null;
+    zoomCaps = null;
 
-    try {
-      if (scanner) {
-        try { await scanner.stop(); } catch (_) {}
-        try { await scanner.clear(); } catch (_) {}
-      }
-    } catch (_) {}
-
-    scanner = null;
     startBtn.disabled = false;
     stopBtn.disabled = true;
-    scanGuide.style.display = "none";
-    scanLine.style.display = "none";
     cameraPlaceholder.style.display = "flex";
+    scanZone.style.display = "none";
+    scanLine.style.display = "none";
+    scanHelp.style.display = "none";
+    zoomRow.style.display = "none";
+    cameraInfo.textContent = "카메라를 시작하면 실제 해상도와 카메라 상태를 표시합니다.";
 
     if (updateUi) {
       setStatus("대기");
@@ -715,34 +769,35 @@
     unlockAudio();
     if (!file) return;
 
-    if (!libraryReady()) {
-      setStatus("엔진 로드 실패", "bad");
-      setMessage("바코드 엔진을 불러오지 못했습니다. 인터넷 연결 후 다시 시도하세요.", "bad");
+    if (!photoEngineReady()) {
+      setStatus("사진 엔진 오류","bad");
+      setMessage("사진 판독 엔진을 불러오지 못했습니다. 인터넷 연결 후 새로고침하세요.","bad");
       photoInput.value = "";
       return;
     }
 
-    if (scanning) {
-      await stopCamera(false);
-    }
+    if (scanning) await stopCamera(false);
 
     setStatus("사진 판독 중");
     setMessage("사진에서 EAN-13 바코드를 찾고 있습니다.");
 
-    let photoScanner = null;
-
     try {
-      photoScanner = newScanner();
-      const decodedText = await photoScanner.scanFile(file, false);
-      handleDetected(decodedText, "photo");
+      if (!photoScanner) {
+        photoScanner = new Html5Qrcode(
+          "photoReader",
+          { formatsToSupport:[Html5QrcodeSupportedFormats.EAN_13] },
+          false
+        );
+      }
+
+      const decoded = await photoScanner.scanFile(file, false);
+      acceptDetectedCode(decoded, "photo");
     } catch (_) {
-      setStatus("판독 실패", "bad");
-      setMessage("사진에서 바코드를 읽지 못했습니다. 바코드가 크게 보이도록 가까이 촬영해 주세요.", "bad");
+      setStatus("판독 실패","bad");
+      setMessage("사진에서 바코드를 읽지 못했습니다. 바코드가 크게 보이도록 촬영해 주세요.","bad");
       badBuzz();
     } finally {
-      try { await photoScanner?.clear(); } catch (_) {}
       photoInput.value = "";
-      cameraPlaceholder.style.display = "flex";
     }
   }
 
@@ -820,12 +875,21 @@
   });
   photoInput.addEventListener("change", () => scanPhoto(photoInput.files?.[0]));
 
+  zoomSlider.addEventListener("input", () => {
+    const z = Number(zoomSlider.value);
+    zoomValue.textContent = z.toFixed(1) + "×";
+
+    if (zoomTimer) clearTimeout(zoomTimer);
+    zoomTimer = setTimeout(() => {
+      applyZoom(z);
+    }, 120);
+  });
+
   manualBtn.addEventListener("click", () => {
     unlockAudio();
-    if (addBarcode(manualCode.value, "manual")) {
-      manualCode.value = "";
-    }
+    if (addBarcode(manualCode.value, "manual")) manualCode.value = "";
   });
+
   manualCode.addEventListener("keydown", e => {
     if (e.key === "Enter") manualBtn.click();
   });
@@ -845,10 +909,9 @@
   });
 
   window.addEventListener("pagehide", () => {
-    if (scanning) stopCamera(false);
+    try { if (scanning) Quagga.stop(); } catch (_) {}
   });
 
-  detectDevice();
   render();
 })();
 </script>
